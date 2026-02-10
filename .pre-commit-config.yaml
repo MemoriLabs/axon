@@ -1,0 +1,35 @@
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.5.0
+  hooks:
+  - id: check-yaml
+  - id: end-of-file-fixer
+  - id: trailing-whitespace
+  - id: debug-statements
+
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.14.8
+  hooks:
+  - id: ruff-check
+    args: [--fix, --config, python-sdk/pyproject.toml]
+    files: ^python-sdk/
+  - id: ruff-format
+    args: [--config, python-sdk/pyproject.toml]
+    files: ^python-sdk/
+
+- repo: local
+  hooks:
+  - id: ty
+    name: ty type checker
+    entry: bash -c 'cd python-sdk && uvx ty check --exclude=examples'
+    language: system
+    types: [python]
+    pass_filenames: false
+    files: ^python-sdk/
+
+  - id: pytest
+    name: pytest
+    entry: bash -c 'cd python-sdk && uv run pytest --ignore=tests/benchmarks --ignore=tests/integration'
+    language: system
+    pass_filenames: false
+    files: ^python-sdk/
