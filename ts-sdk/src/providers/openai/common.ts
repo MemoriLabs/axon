@@ -8,9 +8,7 @@
  * @module providers/openai/converters
  */
 
-import { Message } from "@/types/message.js";
-import { LLMRequest } from "@/types/request.js";
-import { Usage } from "@/types/response.js";
+import { Message, LLMRequest, Usage } from "../../types/llm.js";
 import { hasUsage, isTextResponse, isChatCompletionResponse, isStructuredResponse } from "./responses.js";
 
 /**

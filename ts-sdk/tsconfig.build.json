@@ -3,13 +3,18 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
-    "types": ["node"], 
+    "types": ["node"],
     "declaration": true,
-    "sourceMap": true,
-    "paths": {
-      "@/*": ["src/*"]
-    }
+    "sourceMap": true
   },
   "include": ["src"],
-  "exclude": ["tests", "**/*.test.ts", "dist", "node_modules", "vitest.config.ts"]
+  "exclude": [
+    "tests", 
+    "examples", 
+    "**/*.test.ts", 
+    "dist", 
+    "node_modules", 
+    "vitest.config.ts", 
+    "eslint.config.js"
+  ]
 }

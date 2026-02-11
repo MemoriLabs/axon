@@ -48,7 +48,7 @@
  * ```
  */
 
-import { registerClient } from '@/hooks/registry.js';
+import { registerClient } from '../../hooks/registry.js';
 import { isOpenAIClient } from './detect.js';
 import { patchOpenAIClient } from './proxy.js';
 

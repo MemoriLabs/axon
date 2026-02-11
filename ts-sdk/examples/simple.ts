@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { Axon, Task, LLMRequest, CallContext, LLMResponse } from '@/index.js';
+import { Axon, Task, LLMRequest, CallContext, LLMResponse } from '../src/index.js';
 import { OpenAI } from 'openai';
 
 if (!process.env.OPENAI_API_KEY) {
@@ -10,14 +10,18 @@ if (!process.env.OPENAI_API_KEY) {
 const client = new OpenAI();
 
 class LoggingTask implements Task {
-  // FIX: Add specific types to 'req' and 'ctx'
-  before_call(req: LLMRequest, ctx: CallContext) {
+  /**
+   * Explicitly typing 'req' and 'ctx' resolves TS7006 "Implicit Any" errors.
+   */
+  before_call(req: LLMRequest, ctx: CallContext): LLMRequest {
     console.log(`[LoggingTask] Sending request with ${req.messages.length} message(s)`);
     return req;
   }
 
-  // FIX: Add specific types to 'req', 'resp', and 'ctx'
-  after_call(req: LLMRequest, resp: LLMResponse, ctx: CallContext) {
+  /**
+   * Explicitly typing 'req', 'resp', and 'ctx'.
+   */
+  after_call(req: LLMRequest, resp: LLMResponse, ctx: CallContext): LLMResponse {
     console.log(`[LoggingTask] Received response: "${resp.content.slice(0, 50)}..."`);
     return resp;
   }
@@ -36,7 +40,7 @@ await axon.register(client);
 
 console.log('Sending query...');
 const response = await client.chat.completions.create({
-  model: 'gpt-4o-mini', // or 'gpt-4'
+  model: 'gpt-4o-mini',
   messages: [{ role: 'user', content: 'Say hello!' }]
 });
 

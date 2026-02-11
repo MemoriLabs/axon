@@ -1,6 +1,5 @@
 import { CallContext } from './context.js';
-import { LLMRequest } from './request.js';
-import { LLMResponse } from './response.js';
+import { LLMRequest, LLMResponse } from './llm.js';
 
 export type MaybePromise<T> = T | Promise<T>;
 

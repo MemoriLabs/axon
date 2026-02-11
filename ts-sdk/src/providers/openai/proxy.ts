@@ -1,18 +1,10 @@
-/**
- * OpenAI Provider - Client Patching
- * 
- * This file contains the logic for intercepting OpenAI client method calls
- * and running Axon hooks around them. It patches the client in-place using
- * a facade pattern that preserves the original API surface.
- * 
- * @module providers/openai/proxy
- */
-
-import type { Axon } from '@/core/axon.js';
-import type { LLMRequest } from '@/types/request.js';
-import type { LLMResponse } from '@/types/response.js';
-import { HookedCreateProxy, CreateFacade } from '@/hooks/hooked.js';
-import type { OpenAIChatCompletionsCreateArgs, OpenAIClient, OpenAIResponsesCreateArgs } from './types.js';
+import type { Axon } from '../../core/axon.js';
+import { HookedCreateProxy, CreateFacade } from '../../hooks/hooked.js';
+import type { 
+  OpenAIChatCompletionsCreateArgs, 
+  OpenAIClient, 
+  OpenAIResponsesCreateArgs 
+} from './types.js';
 import {
   openaiInputToMessages,
   messagesToOpenAIInput,
@@ -21,15 +13,15 @@ import {
   applyContentToTextResponse,
   applyContentToChatResponse,
 } from './common.js';
+import { LLMRequest, LLMResponse } from '../../types/index.js';
 
 /**
  * Convert responses.create() kwargs to canonical LLMRequest
  */
-function responsesKwargsToRequest(kwargs: Record<string, unknown>): LLMRequest {
-  const model = kwargs.model as string | undefined;
+function responsesKwargsToRequest(kwargs: OpenAIResponsesCreateArgs): LLMRequest {
+  const model = kwargs.model;
   const input = kwargs.input;
 
-  // Remove model and input from params
   const params: Record<string, unknown> = { ...kwargs };
   delete params.model;
   delete params.input;
@@ -44,7 +36,7 @@ function responsesKwargsToRequest(kwargs: Record<string, unknown>): LLMRequest {
 /**
  * Convert canonical LLMRequest to responses.create() kwargs
  */
-function requestToResponsesKwargs(request: LLMRequest): Record<string, unknown> {
+function requestToResponsesKwargs(request: LLMRequest): OpenAIResponsesCreateArgs {
   if (!request.model) {
     throw new Error(
       'No model provided (set model in the OpenAI call or via a before_call hook).'
@@ -55,17 +47,16 @@ function requestToResponsesKwargs(request: LLMRequest): Record<string, unknown> 
     model: request.model,
     input: messagesToOpenAIInput(request),
     ...(request.params ?? {}),
-  };
+  } as OpenAIResponsesCreateArgs;
 }
 
 /**
  * Convert chat.completions.create() kwargs to canonical LLMRequest
  */
-function chatKwargsToRequest(kwargs: Record<string, unknown>): LLMRequest {
-  const model = kwargs.model as string | undefined;
+function chatKwargsToRequest(kwargs: OpenAIChatCompletionsCreateArgs): LLMRequest {
+  const model = kwargs.model;
   const messages = kwargs.messages;
 
-  // Remove model and messages from params
   const params: Record<string, unknown> = { ...kwargs };
   delete params.model;
   delete params.messages;
@@ -80,7 +71,7 @@ function chatKwargsToRequest(kwargs: Record<string, unknown>): LLMRequest {
 /**
  * Convert canonical LLMRequest to chat.completions.create() kwargs
  */
-function requestToChatKwargs(request: LLMRequest): Record<string, unknown> {
+function requestToChatKwargs(request: LLMRequest): OpenAIChatCompletionsCreateArgs {
   if (!request.model) {
     throw new Error(
       'No model provided (set model in the OpenAI call or via a before_call hook).'
@@ -91,7 +82,7 @@ function requestToChatKwargs(request: LLMRequest): Record<string, unknown> {
     model: request.model,
     messages: messagesToOpenAIInput(request),
     ...(request.params ?? {}),
-  };
+  } as OpenAIChatCompletionsCreateArgs;
 }
 
 /**
@@ -121,17 +112,6 @@ function applyChatChanges(raw: unknown, canonical: LLMResponse): void {
 
 /**
  * Patch an OpenAI client to intercept API calls with Axon hooks
- * 
- * This function modifies the client in-place, wrapping its create() methods
- * with Axon's hook system. It uses a facade pattern to avoid mutating the
- * original client object directly.
- * 
- * @param client - OpenAI client instance (type unknown from registry)
- * @param axon - Axon instance to run hooks with
- * @throws {Error} If client has no patchable APIs
- * 
- * @internal
- * This function is called by the provider registry system
  */
 export function patchOpenAIClient(client: unknown, axon: Axon): void {
   const openaiClient = client as OpenAIClient;
@@ -142,15 +122,8 @@ export function patchOpenAIClient(client: unknown, axon: Axon): void {
     if (!openaiClient.responses.__axon_patched__) {
       patchedAny = true;
       
-      const originalCreate = openaiClient.responses.create.bind(openaiClient.responses);
-
-      // Wrap to match HookedCreateProxy signature
-      const wrappedCreate = async (input: unknown): Promise<unknown> => {
-        return await originalCreate(input as OpenAIResponsesCreateArgs);
-      };
-
-      const proxy = new HookedCreateProxy({
-        create: wrappedCreate,
+      const proxy = new HookedCreateProxy<OpenAIResponsesCreateArgs, any>({
+        create: openaiClient.responses.create.bind(openaiClient.responses),
         axon,
         ctxMetadata: { provider: 'openai', method: 'responses.create' },
         kwargsToRequest: responsesKwargsToRequest,
@@ -159,10 +132,9 @@ export function patchOpenAIClient(client: unknown, axon: Axon): void {
         applyCanonicalToRaw: applyTextChanges,
       });
 
-      const facade = CreateFacade.wrap(openaiClient.responses, proxy);
-      openaiClient.responses = facade as typeof openaiClient.responses;
+      openaiClient.responses = CreateFacade.wrap(openaiClient.responses, proxy) as any;
     } else {
-      patchedAny = true; // Already patched
+      patchedAny = true;
     }
   }
 
@@ -172,15 +144,8 @@ export function patchOpenAIClient(client: unknown, axon: Axon): void {
     if (!chatCompletions.__axon_patched__) {
       patchedAny = true;
       
-      const originalCreate = chatCompletions.create.bind(chatCompletions);
-
-      // Wrap to match HookedCreateProxy signature
-      const wrappedCreate = async (input: unknown): Promise<unknown> => {
-        return await originalCreate(input as OpenAIChatCompletionsCreateArgs);
-      };
-
-      const proxy = new HookedCreateProxy({
-        create: wrappedCreate,
+      const proxy = new HookedCreateProxy<OpenAIChatCompletionsCreateArgs, any>({
+        create: chatCompletions.create.bind(chatCompletions),
         axon,
         ctxMetadata: { provider: 'openai', method: 'chat.completions.create' },
         kwargsToRequest: chatKwargsToRequest,
@@ -189,12 +154,11 @@ export function patchOpenAIClient(client: unknown, axon: Axon): void {
         applyCanonicalToRaw: applyChatChanges,
       });
 
-      const facade = CreateFacade.wrap(chatCompletions, proxy);
       if (openaiClient.chat) {
-        openaiClient.chat.completions = facade as typeof chatCompletions;
+        openaiClient.chat.completions = CreateFacade.wrap(chatCompletions, proxy) as any;
       }
     } else {
-      patchedAny = true; // Already patched
+      patchedAny = true;
     }
   }
 

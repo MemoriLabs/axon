@@ -10,9 +10,7 @@
  * @module providers/openai/adapter
  */
 
-import type { CallContext } from '@/types/context.js';
-import type { LLMRequest } from '@/types/request.js';
-import type { LLMResponse } from '@/types/response.js';
+import type { CallContext, LLMRequest, LLMResponse } from '../../types/index.js';
 import type { OpenAIClient, OpenAIResponsesCreateArgs, OpenAIChatCompletionsCreateArgs } from './types.js';
 import { isOpenAIResponsesClient, isOpenAIChatClient } from './types.js';
 import {

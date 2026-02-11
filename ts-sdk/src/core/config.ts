@@ -1,4 +1,4 @@
-import { AxonConfig } from '@/types/index.js';
+import { AxonConfig } from '../types/index.js';
 
 export const defaultAxonConfig: Required<AxonConfig> = {
   failFast: true,
