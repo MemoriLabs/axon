@@ -213,3 +213,6 @@ agent.md
 node_modules/
 dist/
 *.tsbuildinfo
+
+
+*.DS_STORE

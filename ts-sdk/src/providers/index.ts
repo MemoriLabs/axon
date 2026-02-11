@@ -1,3 +1,3 @@
-import "./openai/index.js";
+import './openai/index.js';
 
 export {};

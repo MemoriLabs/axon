@@ -1,8 +1,4 @@
-export interface AxonConfig {
-  failFast?: boolean;
-  postCallBackground?: boolean;
-  collectHookTimings?: boolean;
-}
+import { AxonConfig } from '@/types/index.js';
 
 export const defaultAxonConfig: Required<AxonConfig> = {
   failFast: true,
