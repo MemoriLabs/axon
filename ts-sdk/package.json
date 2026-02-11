@@ -1,25 +1,89 @@
 {
   "name": "@memori/axon",
   "version": "0.1.0",
-  "private": true,
+  "description": "TypeScript SDK for Memori's hosted memory service",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    }
+      "import": "./dist/index.js"
+    },
+    "./openai": {
+      "types": "./dist/providers/openai/index.d.ts",
+      "import": "./dist/providers/openai/index.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js"
+    },
+    "./errors": {
+      "types": "./dist/errors/index.d.ts",
+      "import": "./dist/errors/index.js"
+    },
+    "./internal": {
+      "types": "./dist/internal.d.ts",
+      "import": "./dist/internal.js"
+    },
+    "./package.json": "./package.json"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "example": "npm run -s build && node dist/examples/simple.js"
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui",
+    "example": "npm run -s build && node dist/examples/simple.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "prepare": "husky",
+    "prepublishOnly": "npm run lint && npm test && npm run build"
   },
+  "keywords": [
+    "memori",
+    "llm",
+    "memory",
+    "ai",
+    "openai",
+    "anthropic",
+    "sdk",
+    "typescript"
+  ],
+  "author": "Memori Labs",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MemoriLabs/memori-cookbook.git",
+    "directory": "typescript-sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/MemoriLabs/memori-cookbook/issues"
+  },
+  "homepage": "https://github.com/MemoriLabs/memori-cookbook/tree/main/typescript-sdk#readme",
   "devDependencies": {
+    "@eslint/js": "^9.0.0",
     "@types/node": "^20.11.30",
+    "@vitest/coverage-v8": "^2.1.9",
+    "@vitest/ui": "^2.1.9",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.0.0",
+    "lint-staged": "^15.0.0",
+    "prettier": "^3.0.0",
     "typescript": "^5.7.3",
+    "typescript-eslint": "^8.55.0",
     "vitest": "^2.1.9"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

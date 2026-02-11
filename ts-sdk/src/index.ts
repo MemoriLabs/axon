@@ -1,8 +1,27 @@
-export { Axon } from "./core.js";
-export { defaultAxonConfig, type AxonConfig } from "./config.js";
-export * from "./types.js";
-export * from "./errors.js";
-export type { Task } from "./tasks.js";
-export type { LLMAdapter } from "./adapters.js";
+// Core exports
+export { Axon, defaultAxonConfig } from './core/index.js';
 
-export * as openai from "./providers/openai/index.js";
+// Type exports
+export type {
+  Role,
+  Message,
+  CallContext,
+  LLMRequest,
+  Usage,
+  LLMResponse,
+  LLMAdapter,
+  Task,
+  AxonConfig,
+} from './types/index.js';
+export { createCallContext } from './types/index.js';
+
+// Error exports
+export {
+  AxonError,
+  AxonHookError,
+  AxonAdapterError,
+  UnsupportedLLMProviderError,
+} from './errors/index.js';
+
+// Provider exports
+export * as openai from './providers/openai/index.js';

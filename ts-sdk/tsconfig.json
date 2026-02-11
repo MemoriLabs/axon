@@ -13,7 +13,18 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "types": ["node"],
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@/types": ["src/types/index.ts"],
+      "@/core": ["src/core/index.ts"],
+      "@/hooks": ["src/hooks/index.ts"],
+      "@/errors": ["src/errors/index.ts"],
+      "@/providers/*": ["src/providers/*"]
+    }
   },
-  "include": ["src", "tests", "examples", "vitest.config.ts"]
+  "include": ["src", "tests", "examples", "vitest.config.ts"],
+  "exclude": ["dist", "node_modules"]
 }

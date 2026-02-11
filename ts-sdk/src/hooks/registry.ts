@@ -1,7 +1,8 @@
-import { UnsupportedLLMProviderError } from "./errors.js";
+import { Axon } from '@/core/axon.js';
+import { UnsupportedLLMProviderError } from '@/errors/unsupported-provider-error.js';
 
 export type Matcher = (client: unknown) => boolean;
-export type Patcher = (client: any, axon: any) => void;
+export type Patcher = (client: unknown, axon: Axon) => void;
 
 interface ClientRegistration {
   matcher: Matcher;
@@ -17,11 +18,11 @@ export function registerClient(matcher: Matcher, patcher: Patcher): void {
 
 async function ensureProvidersLoaded(): Promise<void> {
   if (providersLoaded) return;
-  await import("./providers/index.js");
+  await import('../providers/index.js');
   providersLoaded = true;
 }
 
-export async function patchClient(axon: any, client: any): Promise<void> {
+export async function patchClient(axon: Axon, client: unknown): Promise<void> {
   await ensureProvidersLoaded();
 
   for (const reg of registrations) {
@@ -31,6 +32,13 @@ export async function patchClient(axon: any, client: any): Promise<void> {
     }
   }
 
-  const provider = client?.constructor?.name ? String(client.constructor.name) : typeof client;
+  let provider: string;
+  if (client && typeof client === 'object' && 'constructor' in client) {
+    const ctorName = (client as { constructor: { name: string } }).constructor.name;
+    provider = ctorName || 'Object';
+  } else {
+    provider = typeof client;
+  }
+
   throw new UnsupportedLLMProviderError(provider);
 }
