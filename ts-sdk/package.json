@@ -34,12 +34,12 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
+    "example": "npm run -s build && node dist/examples/simple.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
-    "example": "npm run -s build && node dist/examples/simple.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -78,7 +78,9 @@
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.0.0",
     "lint-staged": "^15.0.0",
+    "openai": "^6.21.0",
     "prettier": "^3.0.0",
+    "tsc-alias": "^1.8.16",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.55.0",
     "vitest": "^2.1.9"

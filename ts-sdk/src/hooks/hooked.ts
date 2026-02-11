@@ -1,5 +1,5 @@
 import { Axon } from '@/core/axon.js';
-import { createCallContext, LLMRequest, LLMResponse } from '@/types';
+import { createCallContext, LLMRequest, LLMResponse } from '@/types/index.js';
 
 /**
  * Converter function types for transforming between provider-specific and canonical formats.
