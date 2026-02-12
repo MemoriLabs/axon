@@ -1,8 +1,5 @@
 import type { CallContext } from './context.js';
 
-/**
- * Core LLM Data Models
- */
 export type Role = 'system' | 'user' | 'assistant' | 'tool';
 
 export interface Message {
@@ -30,6 +27,9 @@ export interface LLMResponse {
   metadata?: Record<string, unknown>;
 }
 
+/**
+ * Interface for objects that can handle a direct Axon call.
+ */
 export interface LLMAdapter {
   call: (request: LLMRequest, ctx: CallContext) => LLMResponse | Promise<LLMResponse>;
 }

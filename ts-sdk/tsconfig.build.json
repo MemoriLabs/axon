@@ -9,12 +9,12 @@
   },
   "include": ["src"],
   "exclude": [
-    "tests", 
-    "examples", 
-    "**/*.test.ts", 
-    "dist", 
-    "node_modules", 
-    "vitest.config.ts", 
+    "tests",
+    "examples",
+    "**/*.test.ts",
+    "dist",
+    "node_modules",
+    "vitest.config.ts",
     "eslint.config.js"
   ]
 }
