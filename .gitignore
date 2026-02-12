@@ -216,3 +216,5 @@ dist/
 
 
 *.DS_STORE
+
+coverage

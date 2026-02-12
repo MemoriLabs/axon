@@ -4,12 +4,12 @@ import { CallContext, LLMRequest, LLMResponse } from '../types/index.js';
 type BeforeHook = (
   req: LLMRequest,
   ctx: CallContext
-) => LLMRequest | Promise<LLMRequest> | void | Promise<void>;
+) => LLMRequest | Promise<LLMRequest> | undefined | Promise<undefined>;
 type AfterHook = (
   req: LLMRequest,
   res: LLMResponse,
   ctx: CallContext
-) => LLMResponse | Promise<LLMResponse> | void | Promise<void>;
+) => LLMResponse | Promise<LLMResponse> | undefined | Promise<undefined>;
 
 type HookType<P> = P extends 'before' ? BeforeHook : AfterHook;
 
@@ -34,10 +34,11 @@ export class HookRegistry<P extends 'before' | 'after'> {
    * Execute all registered hooks in sequence.
    * @internal
    */
-  async execute(...args: any[]): Promise<any> {
+  async execute(...args: unknown[]): Promise<unknown> {
     // Logic for 'before' phase: (req, ctx) -> req
     if (this.phase === 'before') {
-      let [currentReq, ctx] = args as [LLMRequest, CallContext];
+      let currentReq = args[0] as LLMRequest;
+      const ctx = args[1] as CallContext;
 
       for (const hook of this.hooks as BeforeHook[]) {
         const result = await hook(currentReq, ctx);
@@ -48,7 +49,9 @@ export class HookRegistry<P extends 'before' | 'after'> {
 
     // Logic for 'after' phase: (req, res, ctx) -> res
     if (this.phase === 'after') {
-      let [req, currentRes, ctx] = args as [LLMRequest, LLMResponse, CallContext];
+      const req = args[0] as LLMRequest;
+      let currentRes = args[1] as LLMResponse;
+      const ctx = args[2] as CallContext;
 
       for (const hook of this.hooks as AfterHook[]) {
         const result = await hook(req, currentRes, ctx);
@@ -56,5 +59,6 @@ export class HookRegistry<P extends 'before' | 'after'> {
       }
       return currentRes;
     }
+    return undefined;
   }
 }

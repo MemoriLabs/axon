@@ -1,5 +1,7 @@
 import { Message, LLMRequest, Usage, LLMResponse } from '../../types/index.js';
-import { hasUsage } from './responses.js';
+import { hasUsage, OpenAIChatCompletionResponse, OpenAITextResponse } from './responses.js';
+
+type AnyOpenAIResponse = OpenAIChatCompletionResponse | OpenAITextResponse;
 
 export function openaiInputToMessages(input: unknown): Message[] {
   if (typeof input === 'string') return [{ role: 'user', content: input }];
@@ -7,14 +9,14 @@ export function openaiInputToMessages(input: unknown): Message[] {
   throw new Error('Invalid OpenAI input format');
 }
 
-export function messagesToOpenAIInput(request: LLMRequest): any[] {
+export function messagesToOpenAIInput(request: LLMRequest): { role: string; content: string }[] {
   return request.messages.map((m) => ({ role: m.role, content: m.content }));
 }
 
 export function contentFromOpenAI(response: unknown): string {
-  const r = response as any;
-  if (r.output_text) return r.output_text;
-  if (r.choices?.[0]?.message?.content) return r.choices[0].message.content;
+  const r = response as AnyOpenAIResponse;
+  if ('output_text' in r) return r.output_text;
+  if ('choices' in r && r.choices[0]?.message?.content) return r.choices[0].message.content;
   return '';
 }
 
@@ -32,9 +34,11 @@ export function usageFromOpenAI(response: unknown): Usage | undefined {
  * Apply canonical response changes back to OpenAI text response
  */
 export function applyContentToTextResponse(raw: unknown, canonical: LLMResponse): void {
-  // We extract the content string from the canonical response here
-  if ((raw as any).output_text !== undefined) {
-    (raw as any).output_text = canonical.content;
+  const r = raw as OpenAITextResponse;
+  // We explicitly check property existence before assignment to avoid issues
+  // if the cast was incorrect (though in this architecture it should be correct).
+  if ('output_text' in r) {
+    r.output_text = canonical.content;
   }
 }
 
@@ -43,7 +47,8 @@ export function applyContentToTextResponse(raw: unknown, canonical: LLMResponse)
  */
 export function applyContentToChatResponse(raw: unknown, canonical: LLMResponse): void {
   // We extract the content string from the canonical response here
-  if ((raw as any).choices?.[0]?.message) {
-    (raw as any).choices[0].message.content = canonical.content;
+  const r = raw as OpenAIChatCompletionResponse;
+  if (r.choices[0]?.message) {
+    r.choices[0].message.content = canonical.content;
   }
 }

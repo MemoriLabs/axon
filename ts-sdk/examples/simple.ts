@@ -25,14 +25,14 @@ async function main() {
   // 3. Register Hooks (Fluent API)
 
   // Before Hook: Log the request
-  axon.before.register(async (req: LLMRequest, ctx: CallContext) => {
+  axon.before.register((req: LLMRequest, _ctx: CallContext) => {
     console.log(`\n[Pre-Hook] Sending ${req.messages.length} message(s) to ${req.model}`);
     // You can modify 'req' here if you want
     return req;
   });
 
   // After Hook: Log the response
-  axon.after.register(async (req: LLMRequest, res: LLMResponse, ctx: CallContext) => {
+  axon.after.register((_req: LLMRequest, res: LLMResponse, ctx: CallContext) => {
     console.log(`[Post-Hook] Received response (${res.usage?.totalTokens ?? '?'} tokens)`);
     console.log(`[Post-Hook] Trace ID: ${ctx.traceId}`);
     return res;
