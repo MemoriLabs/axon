@@ -1,9 +1,9 @@
 import type { Axon } from '../../core/axon.js';
 import { HookedCreateProxy, CreateFacade } from '../../hooks/hooked.js';
-import type { 
-  OpenAIChatCompletionsCreateArgs, 
-  OpenAIClient, 
-  OpenAIResponsesCreateArgs 
+import type {
+  OpenAIResponsesCreateArgs,
+  OpenAIChatCompletionsCreateArgs,
+  OpenAIClient,
 } from './types.js';
 import {
   openaiInputToMessages,
@@ -14,35 +14,22 @@ import {
   applyContentToChatResponse,
 } from './common.js';
 import { LLMRequest, LLMResponse } from '../../types/index.js';
+import { isOpenAIClient } from './detect.js';
 
-/**
- * Convert responses.create() kwargs to canonical LLMRequest
- */
+// Track patched objects to prevent double-wrapping
+const patchedObjects = new WeakSet<any>();
+
+// --- Converters ---
+
 function responsesKwargsToRequest(kwargs: OpenAIResponsesCreateArgs): LLMRequest {
-  const model = kwargs.model;
-  const input = kwargs.input;
-
   const params: Record<string, unknown> = { ...kwargs };
   delete params.model;
   delete params.input;
-
-  return {
-    messages: openaiInputToMessages(input),
-    model,
-    params,
-  };
+  return { messages: openaiInputToMessages(kwargs.input), model: kwargs.model, params };
 }
 
-/**
- * Convert canonical LLMRequest to responses.create() kwargs
- */
 function requestToResponsesKwargs(request: LLMRequest): OpenAIResponsesCreateArgs {
-  if (!request.model) {
-    throw new Error(
-      'No model provided (set model in the OpenAI call or via a before_call hook).'
-    );
-  }
-
+  if (!request.model) throw new Error('No model provided.');
   return {
     model: request.model,
     input: messagesToOpenAIInput(request),
@@ -50,34 +37,15 @@ function requestToResponsesKwargs(request: LLMRequest): OpenAIResponsesCreateArg
   } as OpenAIResponsesCreateArgs;
 }
 
-/**
- * Convert chat.completions.create() kwargs to canonical LLMRequest
- */
 function chatKwargsToRequest(kwargs: OpenAIChatCompletionsCreateArgs): LLMRequest {
-  const model = kwargs.model;
-  const messages = kwargs.messages;
-
   const params: Record<string, unknown> = { ...kwargs };
   delete params.model;
   delete params.messages;
-
-  return {
-    messages: openaiInputToMessages(messages),
-    model,
-    params,
-  };
+  return { messages: openaiInputToMessages(kwargs.messages), model: kwargs.model, params };
 }
 
-/**
- * Convert canonical LLMRequest to chat.completions.create() kwargs
- */
 function requestToChatKwargs(request: LLMRequest): OpenAIChatCompletionsCreateArgs {
-  if (!request.model) {
-    throw new Error(
-      'No model provided (set model in the OpenAI call or via a before_call hook).'
-    );
-  }
-
+  if (!request.model) throw new Error('No model provided.');
   return {
     model: request.model,
     messages: messagesToOpenAIInput(request),
@@ -85,87 +53,71 @@ function requestToChatKwargs(request: LLMRequest): OpenAIChatCompletionsCreateAr
   } as OpenAIChatCompletionsCreateArgs;
 }
 
-/**
- * Convert any OpenAI raw response to canonical LLMResponse
- */
 function rawToCanonical(raw: unknown): LLMResponse {
-  return {
-    content: contentFromOpenAI(raw),
-    usage: usageFromOpenAI(raw),
-    raw,
-  };
+  return { content: contentFromOpenAI(raw), usage: usageFromOpenAI(raw), raw };
 }
 
-/**
- * Apply canonical content changes back to text response format
- */
-function applyTextChanges(raw: unknown, canonical: LLMResponse): void {
-  applyContentToTextResponse(raw, canonical.content);
+function chunkToText(chunk: any): string | undefined {
+  if (chunk.choices?.[0]?.delta?.content) return chunk.choices[0].delta.content;
+  if (chunk.output_text) return chunk.output_text;
+  return undefined;
 }
 
-/**
- * Apply canonical content changes back to chat response format
- */
-function applyChatChanges(raw: unknown, canonical: LLMResponse): void {
-  applyContentToChatResponse(raw, canonical.content);
-}
+// --- Patcher ---
 
-/**
- * Patch an OpenAI client to intercept API calls with Axon hooks
- */
 export function patchOpenAIClient(client: unknown, axon: Axon): void {
   const openaiClient = client as OpenAIClient;
   let patchedAny = false;
 
-  // Patch responses API if available
-  if (openaiClient.responses && typeof openaiClient.responses.create === 'function') {
-    if (!openaiClient.responses.__axon_patched__) {
-      patchedAny = true;
-      
-      const proxy = new HookedCreateProxy<OpenAIResponsesCreateArgs, any>({
-        create: openaiClient.responses.create.bind(openaiClient.responses),
-        axon,
-        ctxMetadata: { provider: 'openai', method: 'responses.create' },
-        kwargsToRequest: responsesKwargsToRequest,
-        requestToKwargs: requestToResponsesKwargs,
-        rawToResponse: rawToCanonical,
-        applyCanonicalToRaw: applyTextChanges,
-      });
+  // Patch Responses API
+  if (openaiClient.responses?.create && !patchedObjects.has(openaiClient.responses)) {
+    patchedAny = true;
+    const proxy = new HookedCreateProxy<OpenAIResponsesCreateArgs, any>({
+      create: openaiClient.responses.create.bind(openaiClient.responses),
+      axon,
+      ctxMetadata: { provider: 'openai', method: 'responses.create' },
+      kwargsToRequest: responsesKwargsToRequest,
+      requestToKwargs: requestToResponsesKwargs,
+      rawToResponse: rawToCanonical,
+      applyCanonicalToRaw: applyContentToTextResponse,
+      chunkToText,
+    });
 
-      openaiClient.responses = CreateFacade.wrap(openaiClient.responses, proxy) as any;
-    } else {
-      patchedAny = true;
-    }
+    const wrapped = CreateFacade.wrap(openaiClient.responses, proxy);
+    openaiClient.responses = wrapped;
+    patchedObjects.add(wrapped);
+  } else if (openaiClient.responses && patchedObjects.has(openaiClient.responses)) {
+    patchedAny = true; // Already patched
   }
 
-  // Patch chat.completions API if available
-  const chatCompletions = openaiClient.chat?.completions;
-  if (chatCompletions && typeof chatCompletions.create === 'function') {
-    if (!chatCompletions.__axon_patched__) {
-      patchedAny = true;
-      
-      const proxy = new HookedCreateProxy<OpenAIChatCompletionsCreateArgs, any>({
-        create: chatCompletions.create.bind(chatCompletions),
-        axon,
-        ctxMetadata: { provider: 'openai', method: 'chat.completions.create' },
-        kwargsToRequest: chatKwargsToRequest,
-        requestToKwargs: requestToChatKwargs,
-        rawToResponse: rawToCanonical,
-        applyCanonicalToRaw: applyChatChanges,
-      });
+  // Patch Chat Completions API
+  if (
+    openaiClient.chat?.completions?.create &&
+    !patchedObjects.has(openaiClient.chat.completions)
+  ) {
+    patchedAny = true;
+    const proxy = new HookedCreateProxy<OpenAIChatCompletionsCreateArgs, any>({
+      create: openaiClient.chat.completions.create.bind(openaiClient.chat.completions),
+      axon,
+      ctxMetadata: { provider: 'openai', method: 'chat.completions.create' },
+      kwargsToRequest: chatKwargsToRequest,
+      requestToKwargs: requestToChatKwargs,
+      rawToResponse: rawToCanonical,
+      applyCanonicalToRaw: applyContentToChatResponse,
+      chunkToText,
+    });
 
-      if (openaiClient.chat) {
-        openaiClient.chat.completions = CreateFacade.wrap(chatCompletions, proxy) as any;
-      }
-    } else {
-      patchedAny = true;
+    if (openaiClient.chat) {
+      const wrapped = CreateFacade.wrap(openaiClient.chat.completions, proxy);
+      openaiClient.chat.completions = wrapped;
+      patchedObjects.add(wrapped);
     }
+  } else if (openaiClient.chat?.completions && patchedObjects.has(openaiClient.chat.completions)) {
+    patchedAny = true; // Already patched
   }
 
-  if (!patchedAny) {
-    throw new Error(
-      'OpenAI client has no patchable APIs. ' +
-      'Expected either responses.create() or chat.completions.create() method.'
-    );
+  // If we found APIs but they were already patched, we consider that a success (idempotent)
+  if (!patchedAny && !isOpenAIClient(client)) {
+    throw new Error('OpenAI client has no patchable APIs.');
   }
 }

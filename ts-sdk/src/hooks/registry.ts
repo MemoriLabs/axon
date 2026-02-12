@@ -1,44 +1,60 @@
-import { Axon } from '../core/axon.js';
-import { UnsupportedLLMProviderError } from '../errors/unsupported-provider-error.js';
+import { CallContext, LLMRequest, LLMResponse } from '../types/index.js';
 
-export type Matcher = (client: unknown) => boolean;
-export type Patcher = (client: unknown, axon: Axon) => void;
+// Define the shape of hook functions
+type BeforeHook = (
+  req: LLMRequest,
+  ctx: CallContext
+) => LLMRequest | Promise<LLMRequest> | void | Promise<void>;
+type AfterHook = (
+  req: LLMRequest,
+  res: LLMResponse,
+  ctx: CallContext
+) => LLMResponse | Promise<LLMResponse> | void | Promise<void>;
 
-interface ClientRegistration {
-  matcher: Matcher;
-  patcher: Patcher;
-}
+type HookType<P> = P extends 'before' ? BeforeHook : AfterHook;
 
-const registrations: ClientRegistration[] = [];
-let providersLoaded = false;
+/**
+ * Registry for lifecycle hooks.
+ * Allows users to register functions via `axon.before.register(fn)`.
+ */
+export class HookRegistry<P extends 'before' | 'after'> {
+  private hooks: Array<HookType<P>> = [];
 
-export function registerClient(matcher: Matcher, patcher: Patcher): void {
-  registrations.push({ matcher, patcher });
-}
+  constructor(private readonly phase: P) {}
 
-async function ensureProvidersLoaded(): Promise<void> {
-  if (providersLoaded) return;
-  await import('../providers/index.js');
-  providersLoaded = true;
-}
+  /**
+   * Register a hook function.
+   * @param fn The function to run (can be async).
+   */
+  register(fn: HookType<P>): void {
+    this.hooks.push(fn);
+  }
 
-export async function patchClient(axon: Axon, client: unknown): Promise<void> {
-  await ensureProvidersLoaded();
+  /**
+   * Execute all registered hooks in sequence.
+   * @internal
+   */
+  async execute(...args: any[]): Promise<any> {
+    // Logic for 'before' phase: (req, ctx) -> req
+    if (this.phase === 'before') {
+      let [currentReq, ctx] = args as [LLMRequest, CallContext];
 
-  for (const reg of registrations) {
-    if (reg.matcher(client)) {
-      reg.patcher(client, axon);
-      return;
+      for (const hook of this.hooks as BeforeHook[]) {
+        const result = await hook(currentReq, ctx);
+        if (result) currentReq = result;
+      }
+      return currentReq;
+    }
+
+    // Logic for 'after' phase: (req, res, ctx) -> res
+    if (this.phase === 'after') {
+      let [req, currentRes, ctx] = args as [LLMRequest, LLMResponse, CallContext];
+
+      for (const hook of this.hooks as AfterHook[]) {
+        const result = await hook(req, currentRes, ctx);
+        if (result) currentRes = result;
+      }
+      return currentRes;
     }
   }
-
-  let provider: string;
-  if (client && typeof client === 'object' && 'constructor' in client) {
-    const ctorName = (client as { constructor: { name: string } }).constructor.name;
-    provider = ctorName || 'Object';
-  } else {
-    provider = typeof client;
-  }
-
-  throw new UnsupportedLLMProviderError(provider);
 }

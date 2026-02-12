@@ -1,124 +1,161 @@
 import { Axon } from '../core/axon.js';
-import { createCallContext, LLMRequest, LLMResponse } from '../types/index.js';
+import { CallContext, createCallContext, LLMRequest, LLMResponse } from '../types/index.js';
 
-/**
- * Converter function types for transforming between provider-specific and canonical formats.
- *
- * @internal
- * These types are part of the provider integration API.
- */
 export type KwargsToRequest<TInput> = (kwargs: TInput) => LLMRequest;
 export type RequestToKwargs<TInput> = (request: LLMRequest) => TInput;
 export type RawToResponse<TOutput> = (raw: TOutput) => LLMResponse;
 export type ApplyCanonicalToRaw<TOutput> = (raw: TOutput, canonical: LLMResponse) => void;
 
 /**
- * HookedCreateProxy handles interception of LLM client method calls.
- *
- * This class encapsulates the logic for running before/after hooks around
- * LLM provider API calls, converting between provider-specific formats and
- * Axon's canonical request/response types.
- *
- * @internal
+ * Wraps an async iterable (stream) to accumulate content and run after_call hooks
+ * when the stream is exhausted.
  */
-export class HookedCreateProxy<TInput = unknown, TOutput = unknown> {
-  private readonly create: (input: TInput) => Promise<TOutput>;
-  private readonly axon: Axon;
-  private readonly ctxMetadata: Record<string, unknown>;
-  private readonly kwargsToRequest: KwargsToRequest<TInput>;
-  private readonly requestToKwargs: RequestToKwargs<TInput>;
-  private readonly rawToResponse: RawToResponse<TOutput>;
-  private readonly applyCanonicalToRaw?: ApplyCanonicalToRaw<TOutput>;
+export class HookedStream<TChunk> implements AsyncIterable<TChunk> {
+  private readonly iterator: AsyncIterator<TChunk>;
+  private accumulatedContent: string[] = [];
+  private hasFinished = false;
 
-  constructor(opts: {
-    create: (input: TInput) => Promise<TOutput>;
-    axon: Axon;
-    ctxMetadata: Record<string, unknown>;
-    kwargsToRequest: KwargsToRequest<TInput>;
-    requestToKwargs: RequestToKwargs<TInput>;
-    rawToResponse: RawToResponse<TOutput>;
-    applyCanonicalToRaw?: ApplyCanonicalToRaw<TOutput>;
-  }) {
-    this.create = opts.create;
-    this.axon = opts.axon;
-    this.ctxMetadata = opts.ctxMetadata;
-    this.kwargsToRequest = opts.kwargsToRequest;
-    this.requestToKwargs = opts.requestToKwargs;
-    this.rawToResponse = opts.rawToResponse;
-    this.applyCanonicalToRaw = opts.applyCanonicalToRaw;
+  constructor(
+    private readonly stream: AsyncIterable<TChunk>,
+    private readonly request: LLMRequest,
+    private readonly ctx: CallContext,
+    private readonly axon: Axon,
+    private readonly chunkToText: (chunk: TChunk) => string | undefined,
+    private readonly getFinalResponse: () => any
+  ) {
+    this.iterator = stream[Symbol.asyncIterator]();
   }
 
-  /**
-   * Execute the hooked create method.
-   * This runs before hooks, calls the underlying LLM API, then runs after hooks.
-   */
-  async executeCreate(input: TInput): Promise<TOutput> {
-    // Create context for this call
-    const ctx = createCallContext({ metadata: { ...this.ctxMetadata } });
-    this.axon.setLastContext(ctx);
+  [Symbol.asyncIterator](): AsyncIterator<TChunk> {
+    return this;
+  }
 
-    // Extract canonical request from provider-specific input
-    let request = this.kwargsToRequest(input);
+  async next(): Promise<IteratorResult<TChunk>> {
+    const result = await this.iterator.next();
 
-    // Run before_call hooks
-    request = await this.axon.runBeforeHooks(request, ctx);
-
-    // Execute the actual LLM call with modified request
-    const raw = await this.create(this.requestToKwargs(request));
-
-    // Extract canonical response from provider-specific output
-    let canonical = this.rawToResponse(raw);
-
-    // Run after_call hooks
-    canonical = await this.axon.runAfterHooks(request, canonical, ctx);
-
-    // Optionally apply canonical changes back to raw response
-    if (this.applyCanonicalToRaw) {
-      try {
-        this.applyCanonicalToRaw(raw, canonical);
-      } catch {
-        // Silently ignore mutations that fail
+    if (result.done) {
+      if (!this.hasFinished) {
+        this.hasFinished = true;
+        await this.finalize();
       }
+      return result;
+    }
+
+    // Accumulate content for the canonical response
+    const text = this.chunkToText(result.value);
+    if (text) {
+      this.accumulatedContent.push(text);
+    }
+
+    return result;
+  }
+
+  async return?(value?: any): Promise<IteratorResult<TChunk>> {
+    if (!this.hasFinished) {
+      this.hasFinished = true;
+      await this.finalize();
+    }
+    return this.iterator.return ? this.iterator.return(value) : { done: true, value };
+  }
+
+  async throw?(e?: any): Promise<IteratorResult<TChunk>> {
+    if (!this.hasFinished) {
+      this.hasFinished = true;
+      // Industry Standard: Attempt to log partial data even on crash.
+      // We catch errors here to ensure the original error 'e' is what gets propagated,
+      // not a secondary error from our logging logic.
+      try {
+        await this.finalize();
+      } catch (finalizeError) {
+        console.error(
+          'Axon warning: Failed to finalize stream during error handling',
+          finalizeError
+        );
+      }
+    }
+    return this.iterator.throw ? this.iterator.throw(e) : Promise.reject(e);
+  }
+
+  private async finalize() {
+    const fullContent = this.accumulatedContent.join('');
+
+    // In a real stream, we might not get usage/raw metadata easily until the end.
+    // This depends on the provider's "final response" capability.
+    let canonical: LLMResponse = {
+      content: fullContent,
+      raw: this.getFinalResponse(), // Pass raw stream object as "final" reference
+    };
+
+    // Run after hooks
+    // Note: In streaming, we can't easily mutate the "past" stream,
+    // so the return value of after hooks is mostly for side-effects (logging, storage).
+    canonical = await this.axon.runAfter(this.request, canonical, this.ctx);
+  }
+}
+
+/**
+ * Proxy for intercepting LLM creation calls.
+ */
+export class HookedCreateProxy<TInput, TOutput> {
+  constructor(
+    private opts: {
+      create: (input: TInput) => Promise<TOutput>;
+      axon: Axon;
+      ctxMetadata: Record<string, unknown>;
+      kwargsToRequest: KwargsToRequest<TInput>;
+      requestToKwargs: RequestToKwargs<TInput>;
+      rawToResponse: RawToResponse<TOutput>;
+      applyCanonicalToRaw?: ApplyCanonicalToRaw<TOutput>;
+      chunkToText?: (chunk: any) => string | undefined;
+    }
+  ) {}
+
+  async executeCreate(input: TInput): Promise<TOutput> {
+    const ctx = createCallContext({ metadata: { ...this.opts.ctxMetadata } });
+    this.opts.axon.setLastContext(ctx);
+
+    let request = this.opts.kwargsToRequest(input);
+    request = await this.opts.axon.runBefore(request, ctx);
+
+    const rawArgs = this.opts.requestToKwargs(request);
+
+    // Check if this is a streaming request
+    // We assume the provider adapter knows how to flag this in the generic arguments
+    const isStream = (rawArgs as any).stream === true;
+
+    const raw = await this.opts.create(rawArgs);
+
+    if (isStream && this.opts.chunkToText) {
+      // Return a wrapped stream that handles the after_call hook logic
+      return new HookedStream(
+        raw as AsyncIterable<any>,
+        request,
+        ctx,
+        this.opts.axon,
+        this.opts.chunkToText,
+        () => raw // Pass raw stream object as "final" reference
+      ) as unknown as TOutput;
+    }
+
+    // Standard non-streaming flow
+    let canonical = this.opts.rawToResponse(raw);
+    canonical = await this.opts.axon.runAfter(request, canonical, ctx);
+
+    // Apply any mutations back to the raw response object
+    if (this.opts.applyCanonicalToRaw) {
+      this.opts.applyCanonicalToRaw(raw, canonical);
     }
 
     return raw;
   }
 }
 
-/**
- * CreateFacade wraps an LLM client resource and intercepts only the `create` method.
- *
- * @internal
- */
 export class CreateFacade {
-  private constructor() {}
-
-  /**
-   * Wrap a resource with a facade that intercepts the `create` method.
-   */
-  static wrap(resource: unknown, hookedProxy: HookedCreateProxy<any, any>): unknown {
-    const facade = {
-      __axon_patched__: true,
-      __axon_original__: resource,
-      create: hookedProxy.executeCreate.bind(hookedProxy),
-    };
-
-    return new Proxy(facade, {
+  static wrap(resource: any, proxy: HookedCreateProxy<any, any>): any {
+    return new Proxy(resource, {
       get(target, prop) {
-        if (prop === '__axon_patched__') return target.__axon_patched__;
-        if (prop === '__axon_original__') return target.__axon_original__;
-        if (prop === 'create') return target.create;
-
-        if (typeof prop === 'string' && resource && typeof resource === 'object') {
-          return (resource as Record<string, unknown>)[prop];
-        }
-        return undefined;
-      },
-      set(target, prop, value) {
-        if (typeof prop === 'string' && resource && typeof resource === 'object') {
-          (resource as Record<string, unknown>)[prop] = value;
-        }
-        return true;
+        if (prop === 'create') return proxy.executeCreate.bind(proxy);
+        return Reflect.get(target, prop);
       },
     });
   }
