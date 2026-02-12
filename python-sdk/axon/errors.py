@@ -21,15 +21,6 @@ class AxonHookError(AxonError):
 
 
 @dataclass(frozen=True, slots=True)
-class AxonAdapterError(AxonError):
-    adapter: Any
-    cause: BaseException
-
-    def __str__(self) -> str:
-        return f"Adapter {type(self.adapter).__name__} failed: {self.cause}"
-
-
-@dataclass(frozen=True, slots=True)
 class UnsupportedLLMProviderError(AxonError):
     provider: str
 

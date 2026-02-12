@@ -93,8 +93,10 @@ def _patch_openai_chat_completions(client: Any, *, axon: Any) -> bool:
     if create is None:
         return False
 
+    is_async_client = "Async" in type(client).__name__
     proxy = HookedCreateProxy(
         create=create,
+        is_async_client=is_async_client,
         axon=axon,
         ctx_metadata={"provider": "openai", "method": "chat.completions.create"},
         kwargs_to_request=_chat_kwargs_to_request,
@@ -112,6 +114,7 @@ def _patch_openai_chat_completions(client: Any, *, axon: Any) -> bool:
 
 def patch_openai_client(client: Any, *, axon: Any) -> None:
     patched_any = False
+    is_async_client = "Async" in type(client).__name__
 
     existing = getattr(client, "responses", None)
     if existing is not None:
@@ -122,6 +125,7 @@ def patch_openai_client(client: Any, *, axon: Any) -> None:
             if create is not None:
                 proxy = HookedCreateProxy(
                     create=create,
+                    is_async_client=is_async_client,
                     axon=axon,
                     ctx_metadata={"provider": "openai", "method": "responses.create"},
                     kwargs_to_request=_kwargs_to_request,

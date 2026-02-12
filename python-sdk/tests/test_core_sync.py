@@ -1,164 +1,146 @@
-import pytest
 import threading
 import time
 
-from axon.config import AxonConfig
-from axon.core import Axon
+import pytest
+
+from axon import Axon
 from axon.errors import AxonHookError
-from axon.types import CallContext, LLMRequest, LLMResponse, Message
+from axon.types import LLMResponse, Message
 
 
-class DummyAdapter:
-    def __init__(self) -> None:
-        self.last_request: LLMRequest | None = None
+def test_register_runs_before_and_after_hooks_and_can_mutate_request_and_response(
+    mocker,
+) -> None:
+    client = mocker.Mock()
+    responses = mocker.Mock()
+    raw = mocker.Mock(output_text="hello")
+    responses.create.return_value = raw
+    client.responses = responses
 
-    def call(self, request: LLMRequest, ctx) -> LLMResponse:
-        self.last_request = request
-        return LLMResponse(content=request.messages[-1].content)
+    class Prefix:
+        def before_call(self, request, ctx):
+            msg = Message(
+                role=request.messages[-1].role,
+                content=f"pre:{request.messages[-1].content}",
+            )
+            return type(request)(
+                messages=[*request.messages[:-1], msg],
+                model=request.model,
+                params=request.params,
+            )
+
+    class Suffix:
+        def after_call(self, request, response: LLMResponse, ctx):
+            return LLMResponse(content=f"{response.content}:post")
+
+    Axon(tasks=[Prefix(), Suffix()]).llm.register(client)
+
+    client.responses.create(model="gpt-test", input=[{"role": "user", "content": "hi"}])
+
+    kwargs = responses.create.call_args.kwargs
+    assert kwargs["input"] == [{"role": "user", "content": "pre:hi"}]
+    assert raw.output_text == "hello:post"
 
 
-class PrefixTask:
-    def before_call(self, request: LLMRequest, ctx) -> LLMRequest:
+def test_before_and_after_registries_can_register_functions(mocker) -> None:
+    client = mocker.Mock()
+    responses = mocker.Mock()
+    raw = mocker.Mock(output_text="hello")
+    responses.create.return_value = raw
+    client.responses = responses
+
+    axon = Axon().llm.register(client)
+
+    def before(request, ctx):
         msg = Message(
             role=request.messages[-1].role,
             content=f"pre:{request.messages[-1].content}",
         )
-        return LLMRequest(
-            messages=[*request.messages[:-1], msg],
-            model=request.model,
-            params=request.params,
-            metadata=request.metadata,
-        )
-
-
-class SuffixTask:
-    def after_call(
-        self, request: LLMRequest, response: LLMResponse, ctx
-    ) -> LLMResponse:
-        return LLMResponse(
-            content=f"{response.content}:post", usage=response.usage, raw=response.raw
-        )
-
-
-class AsyncTasks:
-    async def before_call(self, request: LLMRequest, ctx) -> LLMRequest:
-        msg = Message(
-            role=request.messages[-1].role,
-            content=f"apre:{request.messages[-1].content}",
-        )
-        return LLMRequest(
+        return type(request)(
             messages=[*request.messages[:-1], msg],
             model=request.model,
             params=request.params,
         )
 
-    async def after_call(
-        self, request: LLMRequest, response: LLMResponse, ctx
-    ) -> LLMResponse:
-        return LLMResponse(content=f"{response.content}:apost")
+    def after(request, response: LLMResponse, ctx):
+        return LLMResponse(content=f"{response.content}:post")
+
+    axon.before.register(before)
+    axon.after.register(after)
+
+    client.responses.create(model="gpt-test", input=[{"role": "user", "content": "hi"}])
+
+    kwargs = responses.create.call_args.kwargs
+    assert kwargs["input"] == [{"role": "user", "content": "pre:hi"}]
+    assert raw.output_text == "hello:post"
 
 
-def test_sync_core_runs_tasks_in_order_and_mutates_request() -> None:
-    adapter = DummyAdapter()
-    axon = Axon(adapter=adapter, tasks=[PrefixTask(), SuffixTask()])
+def test_register_sync_can_run_async_hooks_when_no_event_loop(mocker) -> None:
+    client = mocker.Mock()
+    responses = mocker.Mock()
+    raw = mocker.Mock(output_text="hello")
+    responses.create.return_value = raw
+    client.responses = responses
 
-    req = LLMRequest(messages=[Message(role="user", content="hi")])
-    resp = axon.call(req)
+    class AsyncTasks:
+        async def before_call(self, request, ctx):
+            msg = Message(
+                role=request.messages[-1].role,
+                content=f"apre:{request.messages[-1].content}",
+            )
+            return type(request)(
+                messages=[*request.messages[:-1], msg],
+                model=request.model,
+                params=request.params,
+            )
 
-    assert adapter.last_request is not None
-    assert adapter.last_request.messages[-1].content == "pre:hi"
-    assert resp.content == "pre:hi:post"
+        async def after_call(self, request, response: LLMResponse, ctx):
+            return LLMResponse(content=f"{response.content}:apost")
+
+    Axon(tasks=[AsyncTasks()]).llm.register(client)
+
+    client.responses.create(model="gpt-test", input=[{"role": "user", "content": "hi"}])
+
+    kwargs = responses.create.call_args.kwargs
+    assert kwargs["input"] == [{"role": "user", "content": "apre:hi"}]
+    assert raw.output_text == "hello:apost"
 
 
-def test_sync_core_can_run_async_tasks_when_no_event_loop() -> None:
-    adapter = DummyAdapter()
-    axon = Axon(adapter=adapter, tasks=[AsyncTasks()])
+def test_register_wraps_hook_error(mocker) -> None:
+    client = mocker.Mock()
+    responses = mocker.Mock()
+    responses.create.return_value = mocker.Mock(output_text="hello")
+    client.responses = responses
 
-    req = LLMRequest(messages=[Message(role="user", content="hi")])
-    resp = axon.call(req)
-
-    assert adapter.last_request is not None
-    assert adapter.last_request.messages[-1].content == "apre:hi"
-    assert resp.content == "apre:hi:apost"
-
-
-def test_sync_core_wraps_hook_error_when_fail_fast_false() -> None:
     class Boom:
-        def before_call(self, request: LLMRequest, ctx) -> LLMRequest:
+        def before_call(self, request, ctx):
             raise ValueError("nope")
 
-    adapter = DummyAdapter()
-    axon = Axon(adapter=adapter, tasks=[Boom()], config=AxonConfig(fail_fast=False))
+    Axon(tasks=[Boom()]).llm.register(client)
 
     with pytest.raises(AxonHookError) as exc:
-        axon.call(LLMRequest(messages=[Message(role="user", content="hi")]))
+        client.responses.create(
+            model="gpt-test",
+            input=[{"role": "user", "content": "hi"}],
+        )
 
     assert exc.value.hook == "before_call"
 
 
-def test_after_hooks_can_run_in_background() -> None:
+def test_after_hooks_run(mocker) -> None:
+    client = mocker.Mock()
+    responses = mocker.Mock()
+    responses.create.return_value = mocker.Mock(output_text="hello")
+    client.responses = responses
+
     done = threading.Event()
 
     class SlowAfter:
-        def after_call(
-            self, request: LLMRequest, response: LLMResponse, ctx
-        ) -> LLMResponse:
-            time.sleep(0.2)
+        def after_call(self, request, response: LLMResponse, ctx):
+            time.sleep(0.01)
             done.set()
-            return LLMResponse(content=f"{response.content}:post")
+            return None
 
-    adapter = DummyAdapter()
-    axon = Axon(
-        adapter=adapter,
-        tasks=[SlowAfter()],
-        config=AxonConfig(post_call_background=True),
-    )
-
-    start = time.monotonic()
-    resp = axon.call(LLMRequest(messages=[Message(role="user", content="hi")]))
-    elapsed = time.monotonic() - start
-
-    assert resp.content == "hi"
-    assert elapsed < 0.15
+    Axon(tasks=[SlowAfter()]).llm.register(client)
+    client.responses.create(model="gpt-test", input=[{"role": "user", "content": "hi"}])
     assert done.wait(1.0)
-
-
-def test_collect_hook_timings_records_before_call_latency() -> None:
-    class SlowBefore:
-        def before_call(self, request: LLMRequest, ctx) -> LLMRequest:
-            time.sleep(0.05)
-            return request
-
-    adapter = DummyAdapter()
-    axon = Axon(
-        adapter=adapter,
-        tasks=[SlowBefore()],
-        config=AxonConfig(collect_hook_timings=True),
-    )
-    ctx = CallContext()
-
-    axon.call(LLMRequest(messages=[Message(role="user", content="hi")]), ctx=ctx)
-
-    timings = ctx.metadata["axon"]["hook_timings_ms"]
-    assert timings["before_call_total"] >= 10.0
-    assert timings["before_call"][0]["task"] == "SlowBefore"
-
-
-def test_show_latency_prints_latest_before_call_timings(capsys) -> None:
-    class SlowBefore:
-        def before_call(self, request: LLMRequest, ctx) -> LLMRequest:
-            time.sleep(0.02)
-            return request
-
-    adapter = DummyAdapter()
-    axon = Axon(
-        adapter=adapter,
-        tasks=[SlowBefore()],
-        config=AxonConfig(collect_hook_timings=True),
-    )
-
-    axon.call(LLMRequest(messages=[Message(role="user", content="hi")]))
-    axon.show_latency("before")
-
-    out = capsys.readouterr().out
-    assert "Axon latency (before_call)" in out
