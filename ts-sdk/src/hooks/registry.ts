@@ -1,5 +1,5 @@
-import { Axon } from '@/core/axon.js';
-import { UnsupportedLLMProviderError } from '@/errors/unsupported-provider-error.js';
+import { Axon } from '../core/axon.js';
+import { UnsupportedLLMProviderError } from '../errors/unsupported-provider-error.js';
 
 export type Matcher = (client: unknown) => boolean;
 export type Patcher = (client: unknown, axon: Axon) => void;

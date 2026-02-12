@@ -1,5 +1,5 @@
-import { Axon } from '@/core/axon.js';
-import { createCallContext, LLMRequest, LLMResponse } from '@/types';
+import { Axon } from '../core/axon.js';
+import { createCallContext, LLMRequest, LLMResponse } from '../types/index.js';
 
 /**
  * Converter function types for transforming between provider-specific and canonical formats.
@@ -7,10 +7,10 @@ import { createCallContext, LLMRequest, LLMResponse } from '@/types';
  * @internal
  * These types are part of the provider integration API.
  */
-export type KwargsToRequest = (kwargs: Record<string, unknown>) => LLMRequest;
-export type RequestToKwargs = (request: LLMRequest) => Record<string, unknown>;
-export type RawToResponse = (raw: unknown) => LLMResponse;
-export type ApplyCanonicalToRaw = (raw: unknown, canonical: LLMResponse) => void;
+export type KwargsToRequest<TInput> = (kwargs: TInput) => LLMRequest;
+export type RequestToKwargs<TInput> = (request: LLMRequest) => TInput;
+export type RawToResponse<TOutput> = (raw: TOutput) => LLMResponse;
+export type ApplyCanonicalToRaw<TOutput> = (raw: TOutput, canonical: LLMResponse) => void;
 
 /**
  * HookedCreateProxy handles interception of LLM client method calls.
@@ -20,39 +20,24 @@ export type ApplyCanonicalToRaw = (raw: unknown, canonical: LLMResponse) => void
  * Axon's canonical request/response types.
  *
  * @internal
- * This class is part of the provider integration API and is not covered
- * by semantic versioning. It may change in minor or patch releases.
- * Only use this if you're implementing a custom LLM provider integration.
- *
- * @example
- * ```typescript
- * const proxy = new HookedCreateProxy({
- *   create: originalCreateFn,
- *   axon: axonInstance,
- *   ctxMetadata: { provider: 'openai', method: 'chat.completions.create' },
- *   kwargsToRequest: (kwargs) => ({ messages: [...], model: ... }),
- *   requestToKwargs: (req) => ({ messages: [...], model: ... }),
- *   rawToResponse: (raw) => ({ content: ..., usage: ... }),
- * });
- * ```
  */
-export class HookedCreateProxy<TRaw = unknown> {
-  private readonly create: (input: unknown) => Promise<TRaw>;
+export class HookedCreateProxy<TInput = unknown, TOutput = unknown> {
+  private readonly create: (input: TInput) => Promise<TOutput>;
   private readonly axon: Axon;
   private readonly ctxMetadata: Record<string, unknown>;
-  private readonly kwargsToRequest: KwargsToRequest;
-  private readonly requestToKwargs: RequestToKwargs;
-  private readonly rawToResponse: RawToResponse;
-  private readonly applyCanonicalToRaw?: ApplyCanonicalToRaw;
+  private readonly kwargsToRequest: KwargsToRequest<TInput>;
+  private readonly requestToKwargs: RequestToKwargs<TInput>;
+  private readonly rawToResponse: RawToResponse<TOutput>;
+  private readonly applyCanonicalToRaw?: ApplyCanonicalToRaw<TOutput>;
 
   constructor(opts: {
-    create: (input: unknown) => Promise<TRaw>;
+    create: (input: TInput) => Promise<TOutput>;
     axon: Axon;
     ctxMetadata: Record<string, unknown>;
-    kwargsToRequest: KwargsToRequest;
-    requestToKwargs: RequestToKwargs;
-    rawToResponse: RawToResponse;
-    applyCanonicalToRaw?: ApplyCanonicalToRaw;
+    kwargsToRequest: KwargsToRequest<TInput>;
+    requestToKwargs: RequestToKwargs<TInput>;
+    rawToResponse: RawToResponse<TOutput>;
+    applyCanonicalToRaw?: ApplyCanonicalToRaw<TOutput>;
   }) {
     this.create = opts.create;
     this.axon = opts.axon;
@@ -67,14 +52,13 @@ export class HookedCreateProxy<TRaw = unknown> {
    * Execute the hooked create method.
    * This runs before hooks, calls the underlying LLM API, then runs after hooks.
    */
-  async executeCreate(input: unknown): Promise<TRaw> {
+  async executeCreate(input: TInput): Promise<TOutput> {
     // Create context for this call
     const ctx = createCallContext({ metadata: { ...this.ctxMetadata } });
     this.axon.setLastContext(ctx);
 
     // Extract canonical request from provider-specific input
-    const inputKwargs = (input as Record<string, unknown> | null | undefined) || {};
-    let request = this.kwargsToRequest(inputKwargs);
+    let request = this.kwargsToRequest(input);
 
     // Run before_call hooks
     request = await this.axon.runBeforeHooks(request, ctx);
@@ -104,51 +88,33 @@ export class HookedCreateProxy<TRaw = unknown> {
 /**
  * CreateFacade wraps an LLM client resource and intercepts only the `create` method.
  *
- * This facade allows Axon to hook into LLM calls without mutating the original
- * client object. All other properties are passed through to the original resource.
- *
  * @internal
- * This class is part of the provider integration API and is not covered
- * by semantic versioning.
- *
- * @example
- * ```typescript
- * const proxy = new HookedCreateProxy({ ... });
- * const facade = CreateFacade.wrap(client.responses, proxy);
- * client.responses = facade; // Replace with facade
- * ```
  */
 export class CreateFacade {
-  private constructor() {
-    // Private constructor - use static wrap() method
-  }
+  private constructor() {}
 
   /**
    * Wrap a resource with a facade that intercepts the `create` method.
    */
-  static wrap(resource: unknown, hookedProxy: HookedCreateProxy): unknown {
+  static wrap(resource: unknown, hookedProxy: HookedCreateProxy<any, any>): unknown {
     const facade = {
       __axon_patched__: true,
       __axon_original__: resource,
       create: hookedProxy.executeCreate.bind(hookedProxy),
     };
 
-    // Use Proxy to pass through all other properties to the original resource
     return new Proxy(facade, {
       get(target, prop) {
-        // If accessing one of our special properties, return them
         if (prop === '__axon_patched__') return target.__axon_patched__;
         if (prop === '__axon_original__') return target.__axon_original__;
         if (prop === 'create') return target.create;
 
-        // Otherwise pass through to the original resource
         if (typeof prop === 'string' && resource && typeof resource === 'object') {
           return (resource as Record<string, unknown>)[prop];
         }
         return undefined;
       },
       set(target, prop, value) {
-        // Pass through sets to the original resource
         if (typeof prop === 'string' && resource && typeof resource === 'object') {
           (resource as Record<string, unknown>)[prop] = value;
         }

@@ -1,5 +1,6 @@
 // Core exports
 export { Axon, defaultAxonConfig } from './core/index.js';
+export { AxonMonitor } from './core/monitor.js';
 
 // Type exports
 export type {
