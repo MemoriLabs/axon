@@ -1,12 +1,12 @@
 import type { Axon } from '../core/axon.js';
 import { UnsupportedLLMProviderError } from '../errors/index.js';
 
-export type Matcher = (client: any) => boolean;
-export type Patcher = (client: any, axon: Axon) => void;
+export type ClientMatcher = (client: unknown) => boolean;
+export type ClientPatcher = (client: unknown, axon: Axon) => void;
 
-interface Registration {
-  matcher: Matcher;
-  patcher: Patcher;
+interface ProviderRegistration {
+  matcher: ClientMatcher;
+  patcher: ClientPatcher;
 }
 
 /**
@@ -15,7 +15,7 @@ interface Registration {
  */
 export class LLMRegistry {
   // Global list of supported providers (e.g. OpenAI)
-  private static globalRegistrations: Registration[] = [];
+  private static globalRegistrations: ProviderRegistration[] = [];
 
   constructor(private readonly axon: Axon) {}
 
@@ -23,7 +23,7 @@ export class LLMRegistry {
    * Register a client matcher and patcher globally.
    * This is used by provider packages to "plug in" to Axon.
    */
-  static registerProvider(matcher: Matcher, patcher: Patcher): void {
+  static registerProvider(matcher: ClientMatcher, patcher: ClientPatcher): void {
     this.globalRegistrations.push({ matcher, patcher });
   }
 
@@ -41,7 +41,8 @@ export class LLMRegistry {
     }
 
     // If no matcher found, throw error
-    const clientName = (client as any)?.constructor?.name ?? typeof client;
+    const clientName =
+      (client as { constructor?: { name?: string } } | null)?.constructor?.name ?? typeof client;
     throw new UnsupportedLLMProviderError(clientName);
   }
 }

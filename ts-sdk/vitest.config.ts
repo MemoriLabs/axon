@@ -8,10 +8,13 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
+      // Add this line to restrict coverage to the src folder
+      include: ['src/**'],
       exclude: [
         'node_modules/',
         'dist/',
         'tests/',
+        'examples/',
         '**/*.config.ts',
         '**/*.d.ts',
         '**/types/**',

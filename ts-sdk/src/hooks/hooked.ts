@@ -1,17 +1,24 @@
 import { Axon } from '../core/axon.js';
 import { CallContext, createCallContext, LLMRequest, LLMResponse } from '../types/index.js';
 
-export type KwargsToRequest<TInput> = (kwargs: TInput) => LLMRequest;
-export type RequestToKwargs<TInput> = (request: LLMRequest) => TInput;
+export type ArgsToRequest<TInput> = (args: TInput) => LLMRequest;
+export type RequestToArgs<TInput> = (request: LLMRequest) => TInput;
 export type RawToResponse<TOutput> = (raw: TOutput) => LLMResponse;
 export type ApplyCanonicalToRaw<TOutput> = (raw: TOutput, canonical: LLMResponse) => void;
 
+function isStreamArgs(args: unknown): args is { stream: boolean } {
+  return (
+    typeof args === 'object' &&
+    args !== null &&
+    'stream' in args &&
+    (args as { stream: boolean }).stream
+  );
+}
+
 /**
- * Wraps an async iterable (stream) to accumulate content and run after_call hooks
- * when the stream is exhausted.
+ * Wraps an async iterable to handle hook finalization.
  */
 export class HookedStream<TChunk> implements AsyncIterable<TChunk> {
-  private readonly iterator: AsyncIterator<TChunk>;
   private accumulatedContent: string[] = [];
   private hasFinished = false;
 
@@ -20,128 +27,75 @@ export class HookedStream<TChunk> implements AsyncIterable<TChunk> {
     private readonly request: LLMRequest,
     private readonly ctx: CallContext,
     private readonly axon: Axon,
-    private readonly chunkToText: (chunk: TChunk) => string | undefined,
-    private readonly getFinalResponse: () => any
-  ) {
-    this.iterator = stream[Symbol.asyncIterator]();
-  }
+    private readonly chunkToText: (chunk: unknown) => string | undefined,
+    private readonly getFinalResponse: () => unknown
+  ) {}
 
-  [Symbol.asyncIterator](): AsyncIterator<TChunk> {
-    return this;
-  }
-
-  async next(): Promise<IteratorResult<TChunk>> {
-    const result = await this.iterator.next();
-
-    if (result.done) {
+  async *[Symbol.asyncIterator](): AsyncIterator<TChunk> {
+    try {
+      for await (const value of this.stream) {
+        const text = this.chunkToText(value);
+        if (text) {
+          this.accumulatedContent.push(text);
+        }
+        yield value as TChunk;
+      }
+    } finally {
       if (!this.hasFinished) {
         this.hasFinished = true;
         await this.finalize();
       }
-      return result;
     }
-
-    // Accumulate content for the canonical response
-    const text = this.chunkToText(result.value);
-    if (text) {
-      this.accumulatedContent.push(text);
-    }
-
-    return result;
-  }
-
-  async return?(value?: any): Promise<IteratorResult<TChunk>> {
-    if (!this.hasFinished) {
-      this.hasFinished = true;
-      await this.finalize();
-    }
-    return this.iterator.return ? this.iterator.return(value) : { done: true, value };
-  }
-
-  async throw?(e?: any): Promise<IteratorResult<TChunk>> {
-    if (!this.hasFinished) {
-      this.hasFinished = true;
-      // Industry Standard: Attempt to log partial data even on crash.
-      // We catch errors here to ensure the original error 'e' is what gets propagated,
-      // not a secondary error from our logging logic.
-      try {
-        await this.finalize();
-      } catch (finalizeError) {
-        console.error(
-          'Axon warning: Failed to finalize stream during error handling',
-          finalizeError
-        );
-      }
-    }
-    return this.iterator.throw ? this.iterator.throw(e) : Promise.reject(e);
   }
 
   private async finalize() {
-    const fullContent = this.accumulatedContent.join('');
-
-    // In a real stream, we might not get usage/raw metadata easily until the end.
-    // This depends on the provider's "final response" capability.
-    let canonical: LLMResponse = {
-      content: fullContent,
-      raw: this.getFinalResponse(), // Pass raw stream object as "final" reference
+    const canonical: LLMResponse = {
+      content: this.accumulatedContent.join(''),
+      raw: this.getFinalResponse(),
     };
-
-    // Run after hooks
-    // Note: In streaming, we can't easily mutate the "past" stream,
-    // so the return value of after hooks is mostly for side-effects (logging, storage).
-    canonical = await this.axon.runAfter(this.request, canonical, this.ctx);
+    await this.axon.runAfter(this.request, canonical, this.ctx);
   }
 }
 
-/**
- * Proxy for intercepting LLM creation calls.
- */
 export class HookedCreateProxy<TInput, TOutput> {
   constructor(
     private opts: {
       create: (input: TInput) => Promise<TOutput>;
       axon: Axon;
       ctxMetadata: Record<string, unknown>;
-      kwargsToRequest: KwargsToRequest<TInput>;
-      requestToKwargs: RequestToKwargs<TInput>;
+      argsToRequest: ArgsToRequest<TInput>;
+      requestToArgs: RequestToArgs<TInput>;
       rawToResponse: RawToResponse<TOutput>;
       applyCanonicalToRaw?: ApplyCanonicalToRaw<TOutput>;
-      chunkToText?: (chunk: any) => string | undefined;
+      chunkToText?: (chunk: unknown) => string | undefined;
     }
   ) {}
 
   async executeCreate(input: TInput): Promise<TOutput> {
     const ctx = createCallContext({ metadata: { ...this.opts.ctxMetadata } });
-    this.opts.axon.setLastContext(ctx);
 
-    let request = this.opts.kwargsToRequest(input);
+    let request = this.opts.argsToRequest(input);
     request = await this.opts.axon.runBefore(request, ctx);
 
-    const rawArgs = this.opts.requestToKwargs(request);
-
-    // Check if this is a streaming request
-    // We assume the provider adapter knows how to flag this in the generic arguments
-    const isStream = (rawArgs as any).stream === true;
+    const rawArgs = this.opts.requestToArgs(request);
+    const isStream = isStreamArgs(rawArgs);
 
     const raw = await this.opts.create(rawArgs);
 
     if (isStream && this.opts.chunkToText) {
-      // Return a wrapped stream that handles the after_call hook logic
       return new HookedStream(
-        raw as AsyncIterable<any>,
+        raw as AsyncIterable<unknown>,
         request,
         ctx,
         this.opts.axon,
         this.opts.chunkToText,
-        () => raw // Pass raw stream object as "final" reference
+        () => raw
       ) as unknown as TOutput;
     }
 
-    // Standard non-streaming flow
     let canonical = this.opts.rawToResponse(raw);
     canonical = await this.opts.axon.runAfter(request, canonical, ctx);
 
-    // Apply any mutations back to the raw response object
     if (this.opts.applyCanonicalToRaw) {
       this.opts.applyCanonicalToRaw(raw, canonical);
     }
@@ -151,12 +105,16 @@ export class HookedCreateProxy<TInput, TOutput> {
 }
 
 export class CreateFacade {
-  static wrap(resource: any, proxy: HookedCreateProxy<any, any>): any {
-    return new Proxy(resource, {
-      get(target, prop) {
-        if (prop === 'create') return proxy.executeCreate.bind(proxy);
-        return Reflect.get(target, prop);
-      },
-    });
+  /**
+   * Returns a standard function wrapper instead of a Proxy.
+   */
+  static wrap<TInput, TOutput>(
+    originalFn: (input: TInput) => Promise<TOutput>,
+    proxy: HookedCreateProxy<TInput, TOutput>
+  ): (input: TInput) => Promise<TOutput> {
+    const wrapped = (input: TInput) => proxy.executeCreate(input);
+
+    // Copy properties (like .bind or OpenAI specific meta) to the new function
+    return Object.assign(wrapped, originalFn);
   }
 }

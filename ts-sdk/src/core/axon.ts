@@ -29,9 +29,6 @@ export class Axon {
   public readonly before: HookRegistry<'before'>;
   public readonly after: HookRegistry<'after'>;
 
-  // Track context for latency reporting
-  private lastCtx?: CallContext;
-
   constructor(opts: AxonOpts = {}) {
     this.config = { ...defaultAxonConfig, ...(opts.config ?? {}) };
 
@@ -44,18 +41,8 @@ export class Axon {
   // --- Internal Execution Methods ---
 
   /** @internal */
-  setLastContext(ctx: CallContext) {
-    this.lastCtx = ctx;
-  }
-
-  /** @internal */
-  get lastContext() {
-    return this.lastCtx;
-  }
-
-  /** @internal */
   async runBefore(request: LLMRequest, ctx: CallContext): Promise<LLMRequest> {
-    return await this.before.execute(request, ctx);
+    return (await this.before.execute(request, ctx)) as LLMRequest;
   }
 
   /** @internal */
@@ -64,6 +51,6 @@ export class Axon {
     response: LLMResponse,
     ctx: CallContext
   ): Promise<LLMResponse> {
-    return await this.after.execute(request, response, ctx);
+    return (await this.after.execute(request, response, ctx)) as LLMResponse;
   }
 }
