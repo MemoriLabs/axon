@@ -30,23 +30,14 @@ export function usageFromOpenAI(response: unknown): Usage | undefined {
   };
 }
 
-/**
- * Apply canonical response changes back to OpenAI text response
- */
 export function applyContentToTextResponse(raw: unknown, canonical: LLMResponse): void {
   const r = raw as OpenAITextResponse;
-  // We explicitly check property existence before assignment to avoid issues
-  // if the cast was incorrect (though in this architecture it should be correct).
   if ('output_text' in r) {
     r.output_text = canonical.content;
   }
 }
 
-/**
- * Apply canonical response changes back to OpenAI chat completion
- */
 export function applyContentToChatResponse(raw: unknown, canonical: LLMResponse): void {
-  // We extract the content string from the canonical response here
   const r = raw as OpenAIChatCompletionResponse;
   if (r.choices[0]?.message) {
     r.choices[0].message.content = canonical.content;
