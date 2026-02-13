@@ -9,7 +9,7 @@ export interface OpenAIUsage {
 export interface OpenAIChatCompletionResponse {
   choices: Array<{
     message?: { content?: string };
-    delta?: { content?: string }; // For streaming
+    delta?: { content?: string };
   }>;
   usage?: OpenAIUsage;
 }

@@ -16,7 +16,8 @@ function isStreamArgs(args: unknown): args is { stream: boolean } {
 }
 
 /**
- * Wraps an async iterable to handle hook finalization.
+ * Intercepts an async iterable stream to buffer content for 'after' hooks.
+ * @internal
  */
 export class HookedStream<TChunk> implements AsyncIterable<TChunk> {
   private accumulatedContent: string[] = [];
@@ -57,6 +58,10 @@ export class HookedStream<TChunk> implements AsyncIterable<TChunk> {
   }
 }
 
+/**
+ * A proxy handler that injects Axon logic into a provider's `create` method.
+ * @internal
+ */
 export class HookedCreateProxy<TInput, TOutput> {
   constructor(
     private opts: {
@@ -74,14 +79,16 @@ export class HookedCreateProxy<TInput, TOutput> {
   async executeCreate(input: TInput): Promise<TOutput> {
     const ctx = createCallContext({ metadata: { ...this.opts.ctxMetadata } });
 
+    // 1. Run Before Hooks
     let request = this.opts.argsToRequest(input);
     request = await this.opts.axon.runBefore(request, ctx);
 
+    // 2. Execute Original Method
     const rawArgs = this.opts.requestToArgs(request);
     const isStream = isStreamArgs(rawArgs);
-
     const raw = await this.opts.create(rawArgs);
 
+    // 3. Handle Streams (Hooks run on completion)
     if (isStream && this.opts.chunkToText) {
       return new HookedStream(
         raw as AsyncIterable<unknown>,
@@ -93,9 +100,11 @@ export class HookedCreateProxy<TInput, TOutput> {
       ) as unknown as TOutput;
     }
 
+    // 4. Handle Standard Response (Run After Hooks immediately)
     let canonical = this.opts.rawToResponse(raw);
     canonical = await this.opts.axon.runAfter(request, canonical, ctx);
 
+    // 5. Apply mutations back to the raw object
     if (this.opts.applyCanonicalToRaw) {
       this.opts.applyCanonicalToRaw(raw, canonical);
     }
@@ -104,17 +113,15 @@ export class HookedCreateProxy<TInput, TOutput> {
   }
 }
 
+/**
+ * @internal
+ */
 export class CreateFacade {
-  /**
-   * Returns a standard function wrapper instead of a Proxy.
-   */
   static wrap<TInput, TOutput>(
     originalFn: (input: TInput) => Promise<TOutput>,
     proxy: HookedCreateProxy<TInput, TOutput>
   ): (input: TInput) => Promise<TOutput> {
     const wrapped = (input: TInput) => proxy.executeCreate(input);
-
-    // Copy properties (like .bind or OpenAI specific meta) to the new function
     return Object.assign(wrapped, originalFn);
   }
 }

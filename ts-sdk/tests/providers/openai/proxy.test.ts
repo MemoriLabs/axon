@@ -16,18 +16,18 @@ describe('OpenAI Proxy Patcher', () => {
     mockCreate = vi.fn().mockResolvedValue({
       id: 'test-id',
       choices: [{ message: { content: 'Hello world' } }],
-      usage: { total_tokens: 10 }
+      usage: { total_tokens: 10 },
     });
 
     mockClient = {
       chat: {
         completions: {
-          create: mockCreate
-        }
+          create: mockCreate,
+        },
       },
       responses: {
-        create: mockCreate
-      }
+        create: mockCreate,
+      },
     };
   });
 
@@ -41,7 +41,7 @@ describe('OpenAI Proxy Patcher', () => {
     const inputArgs = {
       model: 'gpt-4',
       messages: [{ role: 'user', content: 'Hi' }],
-      temperature: 0.7
+      temperature: 0.7,
     };
 
     const result = await mockClient.chat.completions.create(inputArgs);
@@ -57,7 +57,7 @@ describe('OpenAI Proxy Patcher', () => {
     expect(result).toEqual({
       id: 'test-id',
       choices: [{ message: { content: 'Hello world' } }],
-      usage: { total_tokens: 10 }
+      usage: { total_tokens: 10 },
     });
   });
 
@@ -65,14 +65,14 @@ describe('OpenAI Proxy Patcher', () => {
     // Setup mock for text response style
     mockCreate.mockResolvedValue({
       output_text: 'Response text',
-      usage: { total_tokens: 5 }
+      usage: { total_tokens: 5 },
     });
 
     patchOpenAIClient(mockClient, axon);
 
     const inputArgs = {
       model: 'gpt-4-responses',
-      input: 'Test input'
+      input: 'Test input',
     };
 
     await mockClient.responses.create(inputArgs);
@@ -80,7 +80,7 @@ describe('OpenAI Proxy Patcher', () => {
     // The proxy normalizes 'input' string to a message array
     const expectedArgs = {
       ...inputArgs,
-      input: [{ role: 'user', content: 'Test input' }]
+      input: [{ role: 'user', content: 'Test input' }],
     };
 
     expect(mockCreate).toHaveBeenCalledWith(expectedArgs);
@@ -89,6 +89,8 @@ describe('OpenAI Proxy Patcher', () => {
   });
 
   it('should throw error if client has no patchable APIs', () => {
-    expect(() => { patchOpenAIClient({}, axon); }).toThrow(/no patchable APIs/);
+    expect(() => {
+      patchOpenAIClient({}, axon);
+    }).toThrow(/no patchable APIs/);
   });
 });

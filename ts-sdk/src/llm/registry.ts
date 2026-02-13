@@ -10,27 +10,31 @@ interface ProviderRegistration {
 }
 
 /**
- * Registry for LLM provider integrations.
- * Allows users to register clients via `axon.llm.register(client)`.
+ * Manages the detection and patching of third-party LLM clients.
+ * This registry acts as the bridge between Axon and libraries like `openai`, `anthropic`, etc.
  */
 export class LLMRegistry {
-  // Global list of supported providers (e.g. OpenAI)
   private static globalRegistrations: ProviderRegistration[] = [];
 
   constructor(private readonly axon: Axon) {}
 
   /**
-   * Register a client matcher and patcher globally.
-   * This is used by provider packages to "plug in" to Axon.
+   * Registers a provider strategy globally.
+   * This is typically called by provider implementation files (side-effect imports).
+   *
+   * @param matcher - A function that returns `true` if a client instance belongs to this provider.
+   * @param patcher - A function that applies the Axon proxy to the client instance.
    */
   static registerProvider(matcher: ClientMatcher, patcher: ClientPatcher): void {
     this.globalRegistrations.push({ matcher, patcher });
   }
 
   /**
-   * Register a specific client instance with this Axon instance.
-   * @param client The LLM client instance (e.g. new OpenAI())
-   * @returns The Axon instance for chaining
+   * Patches a third-party client instance to route calls through Axon.
+   *
+   * @param client - The initialized LLM client instance (e.g. `new OpenAI(...)`).
+   * @returns The Axon instance for method chaining.
+   * @throws {UnsupportedLLMProviderError} If the provided client is not supported or recognized.
    */
   register(client: unknown): Axon {
     for (const reg of LLMRegistry.globalRegistrations) {
@@ -40,7 +44,7 @@ export class LLMRegistry {
       }
     }
 
-    // If no matcher found, throw error
+    // Attempt to extract a meaningful name for the error message
     const clientName =
       (client as { constructor?: { name?: string } } | null)?.constructor?.name ?? typeof client;
     throw new UnsupportedLLMProviderError(clientName);

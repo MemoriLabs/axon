@@ -19,8 +19,6 @@ import { OpenAIChatCompletionResponse, OpenAITextResponse } from './responses.js
 
 const patchedObjects = new WeakSet();
 
-// --- Helper: Clean Params ---
-// Extract 'model' and the input field, leaving only extra params
 function extractParams(
   args: Record<string, unknown>,
   inputKey: 'input' | 'messages'
@@ -29,7 +27,6 @@ function extractParams(
   return params;
 }
 
-// --- Converters ---
 function responsesArgsToRequest(args: OpenAIResponsesCreateArgs): LLMRequest {
   return {
     messages: openaiInputToMessages(args.input),
@@ -69,7 +66,6 @@ function rawToCanonical(raw: unknown): LLMResponse {
 }
 
 function chunkToText(chunk: unknown): string | undefined {
-  // Safe check: explicitly check for 'string' type to allow empty strings ""
   const chatChunk = chunk as OpenAIChatCompletionResponse;
   const content = chatChunk.choices[0]?.delta?.content;
   if (typeof content === 'string') return content;
@@ -80,7 +76,10 @@ function chunkToText(chunk: unknown): string | undefined {
   return undefined;
 }
 
-// --- Patcher ---
+/**
+ * Applies Axon hooks to an OpenAI client instance.
+ * @internal
+ */
 export function patchOpenAIClient(client: unknown, axon: Axon): void {
   const openaiClient = client as OpenAIClient;
   let patchedAny = false;
@@ -94,7 +93,6 @@ export function patchOpenAIClient(client: unknown, axon: Axon): void {
   ): boolean => {
     if (!resource || typeof resource !== 'object') return false;
 
-    // Treat the parent as a dictionary so we can swap the 'create' property safely
     const parent = resource as Record<string, unknown>;
     const originalMethod = parent.create;
 
@@ -102,7 +100,6 @@ export function patchOpenAIClient(client: unknown, axon: Axon): void {
     if (patchedObjects.has(originalMethod)) return false;
 
     const proxy = new HookedCreateProxy<TArgs, unknown>({
-      // Ensure the original method is bound to the correct 'this' (the parent object)
       create: (originalMethod as (args: TArgs) => Promise<unknown>).bind(parent),
       axon,
       ctxMetadata: { provider: 'openai', method: ctxMethod },
@@ -113,17 +110,14 @@ export function patchOpenAIClient(client: unknown, axon: Axon): void {
       chunkToText,
     });
 
-    // Wrap the function directly using standard function wrapping instead of Proxying the object
     const wrapped = CreateFacade.wrap(originalMethod as (input: TArgs) => Promise<unknown>, proxy);
 
-    // Re-assign back to the parent object
     parent.create = wrapped;
     patchedObjects.add(wrapped as object);
 
     return true;
   };
 
-  // Patch Responses API
   if (openaiClient.responses) {
     if (
       patchResource(
@@ -138,7 +132,6 @@ export function patchOpenAIClient(client: unknown, axon: Axon): void {
     }
   }
 
-  // Patch Chat Completions API
   if (openaiClient.chat?.completions) {
     if (
       patchResource(

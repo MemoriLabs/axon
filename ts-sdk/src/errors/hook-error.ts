@@ -1,5 +1,8 @@
 import { AxonError } from './axon-error.js';
 
+/**
+ * Thrown when a 'before' or 'after' hook fails execution.
+ */
 export class AxonHookError extends AxonError {
   public readonly hook: 'before_call' | 'after_call';
   public readonly cause: unknown;
