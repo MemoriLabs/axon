@@ -34,6 +34,7 @@
     "build": "tsc -p tsconfig.build.json",
     "build:dev": "tsc -p tsconfig.json",
     "example": "npm run -s build:dev && node dist/examples/simple.js",
+    "memori": "npm run -s build:dev && node dist/examples/memori.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
