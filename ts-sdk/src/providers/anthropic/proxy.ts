@@ -1,0 +1,72 @@
+import type { Axon } from '../../core/axon.js';
+import type { AnthropicClient, AnthropicCreateArgs, AnthropicStreamEvent } from './types.js';
+import {
+  anthropicInputToMessages,
+  messagesToAnthropicInput,
+  contentFromAnthropic,
+  usageFromAnthropic,
+  applyContentToResponse,
+} from './common.js';
+import { LLMRequest, LLMResponse } from '../../types/index.js';
+import { patchMethod } from '../patcher.js';
+
+function extractParams(args: AnthropicCreateArgs): Record<string, unknown> {
+  // Separate model and messages from extra provider-specific parameters
+  const { model: _model, messages: _messages, ...params } = args;
+  return params;
+}
+
+function argsToRequest(args: AnthropicCreateArgs): LLMRequest {
+  return {
+    messages: anthropicInputToMessages(args.messages),
+    model: args.model,
+    params: extractParams(args),
+  };
+}
+
+function requestToArgs(request: LLMRequest): AnthropicCreateArgs {
+  if (!request.model) throw new Error('No model provided.');
+  return {
+    model: request.model,
+    messages: messagesToAnthropicInput(request),
+    ...(request.params ?? {}),
+  } as AnthropicCreateArgs;
+}
+
+function rawToCanonical(raw: unknown): LLMResponse {
+  return { content: contentFromAnthropic(raw), usage: usageFromAnthropic(raw), raw };
+}
+
+function chunkToText(chunk: unknown): string | undefined {
+  const event = chunk as AnthropicStreamEvent;
+  // Only extract text from 'content_block_delta' events to avoid metadata noise
+  if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+    return event.delta.text;
+  }
+  return undefined;
+}
+
+/**
+ * Injects Axon hooks into an Anthropic client instance.
+ * @param client - The Anthropic client instance to patch.
+ * @param axon - The Axon instance managing the hooks.
+ */
+export function patchAnthropicClient(client: unknown, axon: Axon): void {
+  const antClient = client as AnthropicClient;
+
+  if (!antClient.messages) {
+    throw new Error('Anthropic client has no messages API.');
+  }
+
+  patchMethod({
+    axon,
+    parent: antClient.messages,
+    methodName: 'create',
+    ctxMetadata: { provider: 'anthropic', method: 'messages.create' },
+    argsToRequest,
+    requestToArgs,
+    rawToResponse: rawToCanonical,
+    applyCanonicalToRaw: applyContentToResponse,
+    chunkToText,
+  });
+}
