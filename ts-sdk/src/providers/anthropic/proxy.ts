@@ -54,7 +54,7 @@ function chunkToText(chunk: unknown): string | undefined {
 export function patchAnthropicClient(client: unknown, axon: Axon): void {
   const antClient = client as AnthropicClient;
 
-  if (!antClient.messages) {
+  if (!(antClient as unknown as Record<string, unknown>).messages) {
     throw new Error('Anthropic client has no messages API.');
   }
 

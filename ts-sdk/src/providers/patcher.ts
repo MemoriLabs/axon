@@ -23,23 +23,33 @@ export interface PatchMethodOpts<TArgs, TOutput> {
   chunkToText?: (chunk: unknown) => string | undefined;
 }
 
+type PatchableFunction = ((...args: unknown[]) => Promise<unknown>) & {
+  __axon_patched__?: boolean;
+  __axon_original__?: unknown;
+};
+
+type PatchedParent = Record<string, unknown> & {
+  __axon_patched__?: boolean;
+};
+
 export function patchMethod<TArgs, TOutput>(opts: PatchMethodOpts<TArgs, TOutput>): boolean {
   if (!opts.parent || typeof opts.parent !== 'object') return false;
 
-  const parentObj = opts.parent as Record<string, any>;
+  const parentObj = opts.parent as PatchedParent;
   const originalMethod = parentObj[opts.methodName];
 
   if (typeof originalMethod !== 'function') return false;
+  const typedMethod = originalMethod as PatchableFunction;
 
   // 1. Idempotency Check:
   // If we have already wrapped this function instance, return true (success).
-  if (patchedObjects.has(originalMethod)) return true;
+  if (patchedObjects.has(typedMethod)) return true;
 
   // Check if it was marked by legacy means (or strictly on the function itself)
-  if (originalMethod['__axon_patched__']) return true;
+  if (typedMethod.__axon_patched__) return true;
 
   const proxy = new HookedCreateProxy<TArgs, TOutput>({
-    create: originalMethod.bind(parentObj),
+    create: typedMethod.bind(parentObj) as (input: TArgs) => Promise<TOutput>,
     axon: opts.axon,
     ctxMetadata: opts.ctxMetadata,
     argsToRequest: opts.argsToRequest,
@@ -49,18 +59,19 @@ export function patchMethod<TArgs, TOutput>(opts: PatchMethodOpts<TArgs, TOutput
     chunkToText: opts.chunkToText,
   });
 
-  const wrapped = CreateFacade.wrap(originalMethod as (input: TArgs) => Promise<TOutput>, proxy);
+  const wrapped = CreateFacade.wrap(typedMethod as (input: TArgs) => Promise<TOutput>, proxy);
 
   // 2. Set Metadata:
   // Store the original method so tests (and users) can access it if needed.
-  (wrapped as any).__axon_original__ = originalMethod;
-  (wrapped as any).__axon_patched__ = true;
+  const wrappedWithMeta = wrapped as PatchableFunction;
+  wrappedWithMeta.__axon_original__ = originalMethod;
+  wrappedWithMeta.__axon_patched__ = true;
 
-  parentObj[opts.methodName] = wrapped;
-  patchedObjects.add(wrapped);
+  parentObj[opts.methodName] = wrappedWithMeta;
+  patchedObjects.add(wrappedWithMeta);
 
   // Also mark the parent object if convenient, though method-marking is more precise.
-  (parentObj as any).__axon_patched__ = true;
+  parentObj.__axon_patched__ = true;
 
   return true;
 }

@@ -54,13 +54,9 @@ async function main() {
 
   // Anthropic specifically returns content blocks
   const textBlock = message.content.find((b) => b.type === 'text');
-  if (textBlock && textBlock.type === 'text') {
-    // Type guard
+  if (textBlock) {
     console.log(textBlock.text);
   }
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+main().catch(console.error);

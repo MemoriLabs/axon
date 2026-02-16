@@ -15,7 +15,7 @@ export function anthropicInputToMessages(input: unknown): Message[] {
         .map((c) => c.text)
         .join('');
     }
-    return { role: m.role as any, content };
+    return { role: m.role as Message['role'], content };
   });
 }
 

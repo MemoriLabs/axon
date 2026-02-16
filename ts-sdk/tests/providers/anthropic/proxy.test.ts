@@ -63,6 +63,7 @@ describe('Anthropic Proxy Patcher', () => {
 
     // Consume stream
     for await (const _ of stream) {
+      // consume stream
     }
 
     // Verify runAfter was called with aggregated text "AB"
