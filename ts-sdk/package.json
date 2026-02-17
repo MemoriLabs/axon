@@ -14,6 +14,10 @@
       "types": "./dist/providers/openai/index.d.ts",
       "import": "./dist/providers/openai/index.js"
     },
+    "./anthropic": {
+      "types": "./dist/providers/anthropic/index.d.ts",
+      "import": "./dist/providers/anthropic/index.js"
+    },
     "./types": {
       "types": "./dist/types/index.d.ts",
       "import": "./dist/types/index.js"
@@ -35,6 +39,7 @@
     "build:dev": "tsc -p tsconfig.json",
     "example": "npm run -s build:dev && node dist/examples/simple.js",
     "memori": "npm run -s build:dev && node dist/examples/memori.js",
+    "example:anthropic": "npm run -s build:dev && node dist/examples/anthropic.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -69,14 +74,19 @@
   },
   "homepage": "https://github.com/MemoriLabs/memori-cookbook/tree/main/typescript-sdk#readme",
   "peerDependencies": {
-    "openai": "^4.0.0"
+    "openai": "^4.0.0",
+    "@anthropic-ai/sdk": "^0.74.0"
   },
   "peerDependenciesMeta": {
     "openai": {
       "optional": true
+    },
+    "@anthropic-ai/sdk": {
+      "optional": true
     }
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.74.0",
     "@eslint/js": "^9.0.0",
     "@types/node": "^20.11.30",
     "@vitest/coverage-v8": "^2.1.9",

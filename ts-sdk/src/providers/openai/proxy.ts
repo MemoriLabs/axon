@@ -1,5 +1,4 @@
 import type { Axon } from '../../core/axon.js';
-import { HookedCreateProxy, CreateFacade } from '../../hooks/hooked.js';
 import type {
   OpenAIResponsesCreateArgs,
   OpenAIChatCompletionsCreateArgs,
@@ -16,8 +15,7 @@ import {
 import { LLMRequest, LLMResponse } from '../../types/index.js';
 import { isOpenAIClient } from './detect.js';
 import { OpenAIChatCompletionResponse, OpenAITextResponse } from './responses.js';
-
-const patchedObjects = new WeakSet();
+import { patchMethod } from '../patcher.js';
 
 function extractParams(
   args: Record<string, unknown>,
@@ -76,71 +74,42 @@ function chunkToText(chunk: unknown): string | undefined {
   return undefined;
 }
 
-/**
- * Applies Axon hooks to an OpenAI client instance.
- * @internal
- */
 export function patchOpenAIClient(client: unknown, axon: Axon): void {
   const openaiClient = client as OpenAIClient;
   let patchedAny = false;
 
-  const patchResource = <TArgs>(
-    resource: unknown,
-    ctxMethod: string,
-    argsToReq: (a: TArgs) => LLMRequest,
-    reqToArgs: (r: LLMRequest) => TArgs,
-    applyToRaw: (raw: unknown, c: LLMResponse) => void
-  ): boolean => {
-    if (!resource || typeof resource !== 'object') return false;
-
-    const parent = resource as Record<string, unknown>;
-    const originalMethod = parent.create;
-
-    if (typeof originalMethod !== 'function') return false;
-    if (patchedObjects.has(originalMethod)) return false;
-
-    const proxy = new HookedCreateProxy<TArgs, unknown>({
-      create: (originalMethod as (args: TArgs) => Promise<unknown>).bind(parent),
-      axon,
-      ctxMetadata: { provider: 'openai', method: ctxMethod },
-      argsToRequest: argsToReq,
-      requestToArgs: reqToArgs,
-      rawToResponse: rawToCanonical,
-      applyCanonicalToRaw: applyToRaw,
-      chunkToText,
-    });
-
-    const wrapped = CreateFacade.wrap(originalMethod as (input: TArgs) => Promise<unknown>, proxy);
-
-    parent.create = wrapped;
-    patchedObjects.add(wrapped as object);
-
-    return true;
-  };
-
+  // Patch Legacy Responses API
   if (openaiClient.responses) {
     if (
-      patchResource(
-        openaiClient.responses,
-        'responses.create',
-        responsesArgsToRequest,
-        requestToResponsesArgs,
-        applyContentToTextResponse
-      )
+      patchMethod({
+        axon,
+        parent: openaiClient.responses,
+        methodName: 'create',
+        ctxMetadata: { provider: 'openai', method: 'responses.create' },
+        argsToRequest: responsesArgsToRequest,
+        requestToArgs: requestToResponsesArgs,
+        rawToResponse: rawToCanonical,
+        applyCanonicalToRaw: applyContentToTextResponse,
+      })
     ) {
       patchedAny = true;
     }
   }
 
+  // Patch Chat Completions API
   if (openaiClient.chat?.completions) {
     if (
-      patchResource(
-        openaiClient.chat.completions,
-        'chat.completions.create',
-        chatArgsToRequest,
-        requestToChatArgs,
-        applyContentToChatResponse
-      )
+      patchMethod({
+        axon,
+        parent: openaiClient.chat.completions,
+        methodName: 'create',
+        ctxMetadata: { provider: 'openai', method: 'chat.completions.create' },
+        argsToRequest: chatArgsToRequest,
+        requestToArgs: requestToChatArgs,
+        rawToResponse: rawToCanonical,
+        applyCanonicalToRaw: applyContentToChatResponse,
+        chunkToText,
+      })
     ) {
       patchedAny = true;
     }
