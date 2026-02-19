@@ -1,5 +1,5 @@
 {
-  "name": "@memori/axon",
+  "name": "@memorilabs/axon",
   "version": "0.1.0",
   "description": "TypeScript SDK for Memori's hosted memory service",
   "type": "module",
@@ -49,8 +49,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "prepare": "husky",
-    "prepublishOnly": "npm run lint && npm test && npm run build"
+    "check": "npm run format:check && npm run lint && npm run typecheck",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "memori",
@@ -66,16 +66,16 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/MemoriLabs/memori-cookbook.git",
-    "directory": "typescript-sdk"
+    "url": "https://github.com/MemoriLabs/axon.git",
+    "directory": "ts-sdk"
   },
   "bugs": {
-    "url": "https://github.com/MemoriLabs/memori-cookbook/issues"
+    "url": "https://github.com/MemoriLabs/axon/issues"
   },
-  "homepage": "https://github.com/MemoriLabs/memori-cookbook/tree/main/typescript-sdk#readme",
+  "homepage": "https://github.com/MemoriLabs/axon",
   "peerDependencies": {
-    "openai": "^4.0.0",
-    "@anthropic-ai/sdk": "^0.74.0"
+    "@anthropic-ai/sdk": "^0.74.0",
+    "openai": "^4.0.0"
   },
   "peerDependenciesMeta": {
     "openai": {
@@ -94,7 +94,6 @@
     "dotenv": "^17.2.4",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^10.1.8",
-    "husky": "^9.0.0",
     "lint-staged": "^15.0.0",
     "openai": "^6.21.0",
     "prettier": "^3.0.0",

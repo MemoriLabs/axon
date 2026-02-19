@@ -1,0 +1,42 @@
+name: CI Code Check (TS)
+
+on:
+  push:
+    branches: [ "main" ]
+    # Only trigger this workflow if files inside ts-sdk change
+    paths:
+      - 'ts-sdk/**' 
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'ts-sdk/**'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    # Run all commands inside the ts-sdk folder
+    defaults:
+      run:
+        working-directory: ./ts-sdk 
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Linter
+        run: npm run lint
+
+      - name: Run Tests
+        run: npm test
+
+      - name: Verify Build
+        run: npm run build
