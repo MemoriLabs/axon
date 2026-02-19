@@ -19,6 +19,7 @@ repos:
 
 - repo: local
   hooks:
+  # --- PYTHON HOOKS ---
   - id: ty
     name: ty type checker
     entry: bash -c 'cd python-sdk && uvx ty check --exclude=examples'
@@ -33,3 +34,32 @@ repos:
     language: system
     pass_filenames: false
     files: ^python-sdk/
+
+  # --- TYPESCRIPT HOOKS ---
+  - id: ts-format
+    name: format (ts-sdk)
+    entry: bash -c 'cd ts-sdk && npm run format'
+    language: system
+    pass_filenames: false
+    files: ^ts-sdk/
+
+  - id: ts-lint
+    name: lint (ts-sdk)
+    entry: bash -c 'cd ts-sdk && npm run lint:fix'
+    language: system
+    pass_filenames: false
+    files: ^ts-sdk/
+
+  - id: ts-typecheck
+    name: typecheck (ts-sdk)
+    entry: bash -c 'cd ts-sdk && npm run typecheck'
+    language: system
+    pass_filenames: false
+    files: ^ts-sdk/
+
+  - id: ts-test
+    name: test (ts-sdk)
+    entry: bash -c 'cd ts-sdk && npm run test'
+    language: system
+    pass_filenames: false
+    files: ^ts-sdk/
