@@ -11,12 +11,7 @@ async function main() {
   const client = new Anthropic();
 
   // 1. Initialize Axon
-  const axon = new Axon({
-    config: {
-      collectHookTimings: true,
-      failFast: true,
-    },
-  });
+  const axon = new Axon();
 
   // 2. Register the Anthropic Client
   console.log('Registering Anthropic client...');

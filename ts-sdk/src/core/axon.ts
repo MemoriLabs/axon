@@ -1,16 +1,6 @@
-import { AxonConfig } from '../types/config.js';
-import { defaultAxonConfig } from './config.js';
 import { HookRegistry } from '../hooks/registry.js';
 import { LLMRegistry } from '../llm/registry.js';
 import { CallContext, LLMRequest, LLMResponse } from '../types/index.js';
-
-/**
- * Configuration options for initializing Axon.
- */
-export interface AxonOpts {
-  /** Runtime configuration overrides. */
-  config?: AxonConfig;
-}
 
 /**
  * The central hub for the Axon SDK.
@@ -18,14 +8,12 @@ export interface AxonOpts {
  * This class orchestrates the lifecycle of LLM calls, managing:
  * - Provider registration (e.g., wrapping OpenAI).
  * - Hook execution (before/after calls).
- * - Configuration state.
- *
  * @example
  * ```ts
  * import { Axon } from 'axon';
  * import { OpenAI } from 'openai';
  *
- * const axon = new Axon({ config: { failFast: true } });
+ * const axon = new Axon();
  * const client = new OpenAI();
  *
  * // 1. Register the client
@@ -42,8 +30,6 @@ export interface AxonOpts {
  * ```
  */
 export class Axon {
-  /** The active configuration for this instance. */
-  public readonly config: Required<AxonConfig>;
   /** Registry for managing third-party LLM providers. */
   public readonly llm: LLMRegistry;
   /** Registry for hooks that run *before* the LLM call. */
@@ -53,11 +39,8 @@ export class Axon {
 
   /**
    * Creates a new Axon instance.
-   *
-   * @param opts - Initialization options, including configuration overrides.
    */
-  constructor(opts: AxonOpts = {}) {
-    this.config = { ...defaultAxonConfig, ...(opts.config ?? {}) };
+  constructor() {
     this.llm = new LLMRegistry(this);
     this.before = new HookRegistry('before');
     this.after = new HookRegistry('after');
