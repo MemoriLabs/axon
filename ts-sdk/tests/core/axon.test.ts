@@ -1,21 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { Axon } from '@/core/axon.js';
-import { defaultAxonConfig } from '@/core/config.js';
 import { createCallContext, LLMRequest, LLMResponse } from '@/types/index.js';
 
 describe('Axon', () => {
-  it('should initialize with default configuration', () => {
-    const axon = new Axon();
-    expect(axon.config).toEqual(defaultAxonConfig);
-  });
-
-  it('should allow overriding specific config values', () => {
-    const axon = new Axon({
-      config: { failFast: false },
-    });
-    expect(axon.config.failFast).toBe(false);
-  });
-
   it('should execute runBefore pipeline', async () => {
     const axon = new Axon();
     const ctx = createCallContext();

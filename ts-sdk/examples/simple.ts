@@ -10,13 +10,7 @@ if (!process.env.OPENAI_API_KEY) {
 async function main() {
   const client = new OpenAI();
 
-  // 1. Initialize Axon (Clean configuration)
-  const axon = new Axon({
-    config: {
-      collectHookTimings: true,
-      failFast: true,
-    },
-  });
+  const axon = new Axon();
 
   // 2. Register the LLM Client
   console.log('Registering client...');
