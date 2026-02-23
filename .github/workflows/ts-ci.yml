@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - 'ts-sdk/**' 
+      - 'ts-sdk/**'
   pull_request:
     branches: [ "main" ]
     paths:
@@ -20,7 +20,7 @@ jobs:
     
     defaults:
       run:
-        working-directory: ./ts-sdk 
+        working-directory: ./ts-sdk
 
     steps:
       - name: Checkout repository

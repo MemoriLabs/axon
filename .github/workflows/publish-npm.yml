@@ -1,16 +1,15 @@
 name: Publish to npm (TS)
 
-# 1) Manual trigger only. NO publish on push!
 on:
-  workflow_dispatch: 
+  workflow_dispatch:
 
 permissions:
   contents: read
-  id-token: write   # REQUIRED for OIDC Trusted Publishing
+  id-token: write
 
 jobs:
   publish:
-    runs-on: ubuntu-latest  
+    runs-on: ubuntu-latest
     
     defaults:
       run:
