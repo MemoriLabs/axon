@@ -6,10 +6,14 @@ describe('CallContext', () => {
     const ctx = createCallContext();
     expect(ctx.traceId).toBeDefined();
     expect(ctx.startedAt).toBeInstanceOf(Date);
-    expect(ctx.metadata).toEqual({});
+    
+    expect(ctx.metadata).toEqual({
+      platform: null,
+      framework: null,
+    });
   });
 
-  it('should use provided values', () => {
+  it('should use provided values and merge with defaults', () => {
     const now = new Date();
     const ctx = createCallContext({
       traceId: '123',
@@ -19,6 +23,11 @@ describe('CallContext', () => {
 
     expect(ctx.traceId).toBe('123');
     expect(ctx.startedAt).toBe(now);
-    expect(ctx.metadata).toEqual({ foo: 'bar' });
+    
+    expect(ctx.metadata).toEqual({ 
+      foo: 'bar',
+      platform: null,
+      framework: null,
+    });
   });
 });

@@ -9,6 +9,7 @@ import {
 } from './common.js';
 import { LLMRequest, LLMResponse } from '../../types/index.js';
 import { patchMethod } from '../patcher.js';
+import { extractSDKVersion } from '../telemetry.js';
 
 function extractParams(args: AnthropicCreateArgs): Record<string, unknown> {
   // Separate model and messages from extra provider-specific parameters
@@ -53,6 +54,7 @@ function chunkToText(chunk: unknown): string | undefined {
  */
 export function patchAnthropicClient(client: unknown, axon: Axon): void {
   const antClient = client as AnthropicClient;
+  const sdkVersion = extractSDKVersion(antClient);
 
   if (!(antClient as unknown as Record<string, unknown>).messages) {
     throw new Error('Anthropic client has no messages API.');
@@ -62,7 +64,7 @@ export function patchAnthropicClient(client: unknown, axon: Axon): void {
     axon,
     parent: antClient.messages,
     methodName: 'create',
-    ctxMetadata: { provider: 'anthropic', method: 'messages.create' },
+    ctxMetadata: { provider: 'anthropic', method: 'messages.create', sdkVersion },
     argsToRequest,
     requestToArgs,
     rawToResponse: rawToCanonical,

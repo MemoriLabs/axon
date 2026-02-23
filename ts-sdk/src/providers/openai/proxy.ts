@@ -16,6 +16,7 @@ import { LLMRequest, LLMResponse } from '../../types/index.js';
 import { isOpenAIClient } from './detect.js';
 import { OpenAIChatCompletionResponse, OpenAITextResponse } from './responses.js';
 import { patchMethod } from '../patcher.js';
+import { extractSDKVersion } from '../telemetry.js';
 
 function extractParams(
   args: Record<string, unknown>,
@@ -76,6 +77,7 @@ function chunkToText(chunk: unknown): string | undefined {
 
 export function patchOpenAIClient(client: unknown, axon: Axon): void {
   const openaiClient = client as OpenAIClient;
+  const sdkVersion = extractSDKVersion(openaiClient);
   let patchedAny = false;
 
   // Patch Legacy Responses API
@@ -85,7 +87,7 @@ export function patchOpenAIClient(client: unknown, axon: Axon): void {
         axon,
         parent: openaiClient.responses,
         methodName: 'create',
-        ctxMetadata: { provider: 'openai', method: 'responses.create' },
+        ctxMetadata: { provider: 'openai', method: 'responses.create', sdkVersion },
         argsToRequest: responsesArgsToRequest,
         requestToArgs: requestToResponsesArgs,
         rawToResponse: rawToCanonical,
@@ -103,7 +105,7 @@ export function patchOpenAIClient(client: unknown, axon: Axon): void {
         axon,
         parent: openaiClient.chat.completions,
         methodName: 'create',
-        ctxMetadata: { provider: 'openai', method: 'chat.completions.create' },
+        ctxMetadata: { provider: 'openai', method: 'chat.completions.create', sdkVersion },
         argsToRequest: chatArgsToRequest,
         requestToArgs: requestToChatArgs,
         rawToResponse: rawToCanonical,
