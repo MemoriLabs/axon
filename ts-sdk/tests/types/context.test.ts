@@ -6,7 +6,7 @@ describe('CallContext', () => {
     const ctx = createCallContext();
     expect(ctx.traceId).toBeDefined();
     expect(ctx.startedAt).toBeInstanceOf(Date);
-    
+
     expect(ctx.metadata).toEqual({
       platform: null,
       framework: null,
@@ -23,8 +23,8 @@ describe('CallContext', () => {
 
     expect(ctx.traceId).toBe('123');
     expect(ctx.startedAt).toBe(now);
-    
-    expect(ctx.metadata).toEqual({ 
+
+    expect(ctx.metadata).toEqual({
       foo: 'bar',
       platform: null,
       framework: null,
