@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { Axon, LLMRequest, LLMResponse, CallContext } from '../src/index.js';
+import { Axon, LLMRequest, LLMResponse, CallContext } from '@memorilabs/axon';
 import Anthropic from '@anthropic-ai/sdk';
 
 if (!process.env.ANTHROPIC_API_KEY) {
