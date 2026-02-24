@@ -49,3 +49,22 @@ export interface LLMResponse {
 export interface LLMAdapter {
   call: (request: LLMRequest, ctx: CallContext) => LLMResponse | Promise<LLMResponse>;
 }
+
+/**
+ * Hook function executed before an LLM call.
+ * Can return a modified request
+ */
+export type BeforeHook = (
+  req: LLMRequest,
+  ctx: CallContext
+) => LLMRequest | Promise<LLMRequest> | Promise<undefined> | Promise<void> | undefined;
+
+/**
+ * Hook function executed after an LLM call.
+ * Can return a modified response
+ */
+export type AfterHook = (
+  req: LLMRequest,
+  res: LLMResponse,
+  ctx: CallContext
+) => LLMResponse | Promise<LLMResponse> | Promise<undefined> | Promise<void> | undefined;

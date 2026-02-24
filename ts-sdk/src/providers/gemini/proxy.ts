@@ -11,6 +11,7 @@ import {
 } from './common.js';
 import { extractSDKVersion } from '../telemetry.js';
 import { GeminiResponse } from './responses.js';
+import { PROVIDERS } from '../../utils/constants.js';
 
 function argsToRequest(args: GeminiGenerateContentArgs): LLMRequest {
   const { model: _model, contents: _contents, ...params } = args;
@@ -55,7 +56,7 @@ export function patchGeminiClient(client: unknown, axon: Axon): void {
     axon,
     parent: geminiClient.models,
     methodName: 'generateContent',
-    ctxMetadata: { provider: 'gemini', method: 'models.generateContent', sdkVersion },
+    ctxMetadata: { provider: PROVIDERS.GEMINI.id, method: 'models.generateContent', sdkVersion },
     argsToRequest,
     requestToArgs,
     rawToResponse: rawToCanonical,
@@ -68,7 +69,11 @@ export function patchGeminiClient(client: unknown, axon: Axon): void {
     axon,
     parent: geminiClient.models,
     methodName: 'generateContentStream',
-    ctxMetadata: { provider: 'gemini', method: 'models.generateContentStream', sdkVersion },
+    ctxMetadata: {
+      provider: PROVIDERS.GEMINI.id,
+      method: 'models.generateContentStream',
+      sdkVersion,
+    },
     argsToRequest: (args) => {
       const baseRequest = argsToRequest(args);
       return {

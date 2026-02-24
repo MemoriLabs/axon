@@ -1,35 +1,122 @@
-# axon
+[![Memori Labs](https://s3.us-east-1.amazonaws.com/images.memorilabs.ai/banner.png)](https://memorilabs.ai/)
 
-Multi-language SDK repo.
+<p align="center">
+  <strong>The universal LLM interceptor and hook registry</strong>
+</p>
 
-### Python SDK
+<p align="center">
+  <i>Axon plugs into the official LLM SDKs you already use. It allows you to seamlessly intercept, modify, and monitor LLM requests and responses through a unified hook system without changing your underlying application code.</i>
+</p>
 
-The Python implementation lives in `python-sdk/`.
+<p align="center">
+  <a href="https://www.npmjs.com/package/@memorilabs/axon">
+    <img src="https://img.shields.io/npm/v/@memorilabs/axon.svg" alt="NPM version">
+  </a>
+  <a href="https://opensource.org/license/apache-2-0">
+    <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License">
+  </a>
+  <a href="https://discord.gg/abD4eGym6v">
+    <img src="https://img.shields.io/discord/1042405378304004156?logo=discord" alt="Discord">
+  </a>
+</p>
 
-- Run tests:
+---
 
-```bash
-cd python-sdk && uv run pytest
+## What is Axon?
+
+Axon is a lightweight SDK wrapper that gives you complete visibility and control over your LLM traffic. Instead of building custom wrappers around OpenAI, Anthropic, or Gemini, Axon patches the official clients directly.
+
+You write a hook once, and it normalizes the requests and responses across all supported providers.
+
+* **Zero Overhead:** Plugs directly into your existing client initialization. No need to rewrite your agent or application logic.
+* **Unified Hook System:** Modify prompts (`before`) or track token usage (`after`) using a single standard format, regardless of which LLM provider your app is talking to.
+* **First-Class Streaming:** Seamlessly handles and aggregates asynchronous streaming responses behind the scenes so your hooks always get the full picture.
+
+## Official SDKs
+
+Axon is available in both TypeScript and Python. Choose your preferred environment below to get started:
+
+* 🟦 **[TypeScript / Node.js SDK](./ts-sdk/README.md)**
+* 🟨 **[Python SDK](./python-sdk/README.md)**
+
+---
+
+## Quick Glance
+
+Axon's API is designed to feel native and consistent no matter what language you are working in.
+
+### TypeScript
+
+```typescript
+import { OpenAI } from 'openai';
+import { Axon } from '@memorilabs/axon';
+
+const client = new OpenAI();
+const axon = new Axon().llm.register(client);
+
+// 1. Intercept and modify requests
+axon.before.register((req, ctx) => {
+  console.log(`Sending to: ${req.model}`);
+  return req;
+});
+
+// 2. Track responses and tokens
+axon.after.register((req, res, ctx) => {
+  console.log(`Tokens used: ${res.usage?.totalTokens}`);
+});
+
+// 3. Call the client exactly as you normally would
+await client.chat.completions.create({ ... });
 ```
 
-- Run the example:
+### Python
 
-```bash
-cd python-sdk && uv run examples/simple.py
+```python
+from openai import OpenAI
+from axon import Axon
+
+client = OpenAI()
+axon = Axon().llm.register(client)
+
+# 1. Intercept and modify requests
+@axon.before.register
+def before_call(request, ctx):
+    print(f"Sending to: {request.model}")
+    return request
+
+# 2. Track responses and tokens
+@axon.after.register
+def after_call(request, response, ctx):
+    print(f"Tokens used: {response.usage.total_tokens}")
+
+# 3. Call the client exactly as you normally would
+client.chat.completions.create(...)
 ```
 
-### TypeScript SDK
+---
 
-The TypeScript implementation lives in `ts-sdk/`.
+## Supported Integrations
 
-- Install deps + run tests:
+Currently, Axon can patch the following official SDKs out of the box:
 
-```bash
-cd ts-sdk && npm install && npm test
-```
+| Provider | TypeScript Peer Dependency | Python Dependency |
+| --- | --- | --- |
+| **OpenAI** | `openai` | `openai` |
+| **Anthropic** | `@anthropic-ai/sdk` | *(Coming soon)* |
+| **Google Gemini** | `@google/genai` | *(Coming soon)* |
 
-- Run the example:
+---
 
-```bash
-cd ts-sdk && npm run example
-```
+## Contributing
+
+We welcome contributions from the community! Please see our [Contributing Guidelines](./CONTRIBUTING.md) for details on how to set up your development environment, run tests, and submit pull requests for both the Python and TypeScript codebases.
+
+## Support
+
+* **Documentation**: [https://memorilabs.ai/docs](https://memorilabs.ai/docs)
+* **Discord**: [Join our community](https://discord.gg/abD4eGym6v)
+* **Issues**: [GitHub Issues](https://github.com/MemoriLabs/axon/issues)
+
+## License
+
+Apache 2.0 - see [LICENSE](./LICENSE)

@@ -17,6 +17,7 @@ import { isOpenAIClient } from './detect.js';
 import { OpenAIChatCompletionResponse, OpenAITextResponse } from './responses.js';
 import { patchMethod } from '../patcher.js';
 import { extractSDKVersion } from '../telemetry.js';
+import { PROVIDERS } from '../../utils/constants.js';
 
 function extractParams(
   args: Record<string, unknown>,
@@ -87,7 +88,7 @@ export function patchOpenAIClient(client: unknown, axon: Axon): void {
         axon,
         parent: openaiClient.responses,
         methodName: 'create',
-        ctxMetadata: { provider: 'openai', method: 'responses.create', sdkVersion },
+        ctxMetadata: { provider: PROVIDERS.OPENAI.id, method: 'responses.create', sdkVersion },
         argsToRequest: responsesArgsToRequest,
         requestToArgs: requestToResponsesArgs,
         rawToResponse: rawToCanonical,
@@ -105,7 +106,11 @@ export function patchOpenAIClient(client: unknown, axon: Axon): void {
         axon,
         parent: openaiClient.chat.completions,
         methodName: 'create',
-        ctxMetadata: { provider: 'openai', method: 'chat.completions.create', sdkVersion },
+        ctxMetadata: {
+          provider: PROVIDERS.OPENAI.id,
+          method: 'chat.completions.create',
+          sdkVersion,
+        },
         argsToRequest: chatArgsToRequest,
         requestToArgs: requestToChatArgs,
         rawToResponse: rawToCanonical,
