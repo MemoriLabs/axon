@@ -1,5 +1,6 @@
 import type { Axon } from '../../core/axon.js';
-import type { AnthropicClient, AnthropicCreateArgs, AnthropicStreamEvent } from './types.js';
+import type { AnthropicClient, AnthropicCreateArgs } from './types.js';
+import { AnthropicStreamEvent } from './responses.js';
 import {
   anthropicInputToMessages,
   messagesToAnthropicInput,

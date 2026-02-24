@@ -1,5 +1,6 @@
 import { Message, LLMRequest, Usage, LLMResponse } from '../../types/index.js';
-import { AnthropicMessage, AnthropicResponse } from './types.js';
+import { AnthropicMessage } from './types.js';
+import { AnthropicResponse } from './responses.js';
 
 export function anthropicInputToMessages(input: unknown): Message[] {
   if (!Array.isArray(input)) throw new Error('Invalid Anthropic input format');
