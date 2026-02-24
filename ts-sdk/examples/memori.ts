@@ -22,8 +22,8 @@ const CONFIG = {
   openAiKey: getEnv('OPENAI_API_KEY'),
   entityId: 'typescript-axon',
   sessionId: randomUUID(),
-  baseUrl: 'https://staging-api.memorilabs.ai/v1/hosted',
-  collectorUrl: 'https://staging-collector.memorilabs.ai/v1/hosted',
+  baseUrl: 'https://staging-api.memorilabs.ai/v1/cloud',
+  collectorUrl: 'https://staging-collector.memorilabs.ai/v1/cloud',
 } as const;
 
 interface MemoriMessage {

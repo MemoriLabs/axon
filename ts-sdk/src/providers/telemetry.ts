@@ -14,6 +14,10 @@ export type VersionedClient = {
  * @internal
  */
 export function extractSDKVersion(client: unknown): string | null {
+  if (!client || typeof client !== 'object') {
+    return null;
+  }
+
   const vClient = client as VersionedClient;
 
   // 1. Check for standard attached properties
