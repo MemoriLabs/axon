@@ -25,6 +25,6 @@
       "@/providers/*": ["src/providers/*"]
     }
   },
-  "include": ["src", "tests", "examples", "vitest.config.ts"],
+  "include": ["src", "tests", "vitest.config.ts"],
   "exclude": ["dist", "node_modules"]
 }

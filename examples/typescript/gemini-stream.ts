@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { Axon, LLMRequest, LLMResponse, CallContext } from '../src/index.js';
+import { Axon, LLMRequest, LLMResponse, CallContext } from '@memorilabs/axon';
 import { GoogleGenAI } from '@google/genai';
 
 if (!process.env.GEMINI_API_KEY) {
