@@ -113,7 +113,6 @@ We welcome contributions from the community! Please see our [Contributing Guidel
 
 ## Support
 
-* **Documentation**: [https://memorilabs.ai/docs](https://memorilabs.ai/docs)
 * **Discord**: [Join our community](https://discord.gg/abD4eGym6v)
 * **Issues**: [GitHub Issues](https://github.com/MemoriLabs/axon/issues)
 

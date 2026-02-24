@@ -2,7 +2,7 @@
 
 ## Security Policy
 
-If you believe you have discovered a security vulnerability in Memori, please **do not** open a public GitHub issue.
+If you believe you have discovered a security vulnerability in Axon, please **do not** open a public GitHub issue.
 
 Instead, responsibly disclose it by:
 - Going to the **Security** tab of this repository
@@ -15,4 +15,4 @@ Please provide as much detail as possible in your private report, including:
 
 This allows us to investigate and address the issue quickly and safely before public disclosure.
 
-Thank you for helping keep Memori secure!
+Thank you for helping keep Axon secure!
