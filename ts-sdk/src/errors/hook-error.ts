@@ -8,7 +8,9 @@ export class AxonHookError extends AxonError {
   public readonly cause: unknown;
 
   constructor(opts: { hook: 'before_call' | 'after_call'; cause: unknown }) {
-    super(`${opts.hook} hook failed: ${String(opts.cause)}`);
+    super(
+      `Axon '${opts.hook}' hook failed during execution. Check your registered hook implementation. Underlying cause: ${String(opts.cause)}`
+    );
     this.name = 'AxonHookError';
     this.hook = opts.hook;
     this.cause = opts.cause;

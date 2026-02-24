@@ -1,17 +1,6 @@
-import { CallContext, LLMRequest, LLMResponse } from '../types/index.js';
+import { AfterHook, BeforeHook, CallContext, LLMRequest, LLMResponse } from '../types/index.js';
 
-type BeforeHook = (
-  req: LLMRequest,
-  ctx: CallContext
-) => LLMRequest | Promise<LLMRequest> | undefined | Promise<undefined>;
-
-type AfterHook = (
-  req: LLMRequest,
-  res: LLMResponse,
-  ctx: CallContext
-) => LLMResponse | Promise<LLMResponse> | undefined | Promise<undefined>;
-
-type HookType<P> = P extends 'before' ? BeforeHook : AfterHook;
+export type HookType<P> = P extends 'before' ? BeforeHook : AfterHook;
 
 /**
  * Manages a list of lifecycle hooks for a specific phase.
@@ -27,7 +16,19 @@ export class HookRegistry<P extends 'before' | 'after'> {
    * Registers a new hook function.
    * Hooks are executed sequentially in the order they are registered.
    *
-   * @param fn - The hook function to execute.
+   * @param fn - The hook function to execute. It can optionally return a modified request/response, or a Promise resolving to one.
+   * * @example
+   * ```ts
+   * // Before Hook Example:
+   * axon.before.register((req, ctx) => {
+   * console.log(`Sending prompt to ${req.model}`);
+   * return req; // Optional: return modified request
+   * });
+   * * // After Hook Example:
+   * axon.after.register((req, res, ctx) => {
+   * console.log(`Received ${res.usage?.totalTokens} tokens`);
+   * });
+   * ```
    */
   register(fn: HookType<P>): void {
     this.hooks.push(fn);

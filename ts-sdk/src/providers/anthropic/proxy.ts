@@ -11,6 +11,7 @@ import {
 import { LLMRequest, LLMResponse } from '../../types/index.js';
 import { patchMethod } from '../patcher.js';
 import { extractSDKVersion } from '../telemetry.js';
+import { PROVIDERS } from '../../utils/constants.js';
 
 function extractParams(args: AnthropicCreateArgs): Record<string, unknown> {
   // Separate model and messages from extra provider-specific parameters
@@ -65,7 +66,7 @@ export function patchAnthropicClient(client: unknown, axon: Axon): void {
     axon,
     parent: antClient.messages,
     methodName: 'create',
-    ctxMetadata: { provider: 'anthropic', method: 'messages.create', sdkVersion },
+    ctxMetadata: { provider: PROVIDERS.ANTHROPIC.id, method: 'messages.create', sdkVersion },
     argsToRequest,
     requestToArgs,
     rawToResponse: rawToCanonical,

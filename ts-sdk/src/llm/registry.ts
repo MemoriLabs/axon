@@ -32,9 +32,16 @@ export class LLMRegistry {
   /**
    * Patches a third-party client instance to route calls through Axon.
    *
-   * @param client - The initialized LLM client instance (e.g. `new OpenAI(...)`).
+   * @param client - The initialized LLM client instance.
    * @returns The Axon instance for method chaining.
    * @throws {UnsupportedLLMProviderError} If the provided client is not supported or recognized.
+   * * @example
+   * ```ts
+   * const axon = new Axon();
+   * const openai = new OpenAI({ apiKey: '...' });
+   * * // Patch the client
+   * axon.llm.register(openai);
+   * ```
    */
   register(client: unknown): Axon {
     for (const reg of LLMRegistry.globalRegistrations) {

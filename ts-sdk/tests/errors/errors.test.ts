@@ -15,7 +15,7 @@ describe('Errors', () => {
     expect(err.name).toBe('AxonHookError');
     expect(err.hook).toBe('before_call');
     expect(err.cause).toBe(cause);
-    expect(err.message).toContain('before_call hook failed');
+    expect(err.message).toContain(`Axon 'before_call' hook failed during execution.`);
   });
 
   it('UnsupportedLLMProviderError should store provider name', () => {

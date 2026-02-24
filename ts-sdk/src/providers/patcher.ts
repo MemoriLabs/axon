@@ -41,12 +41,8 @@ export function patchMethod<TArgs, TOutput>(opts: PatchMethodOpts<TArgs, TOutput
   if (typeof originalMethod !== 'function') return false;
   const typedMethod = originalMethod as PatchableFunction;
 
-  // 1. Idempotency Check:
-  // If we have already wrapped this function instance, return true (success).
-  if (patchedObjects.has(typedMethod)) return true;
-
-  // Check if it was marked by legacy means (or strictly on the function itself)
-  if (typedMethod.__axon_patched__) return true;
+  // Prevent double wrapping the same function instance
+  if (patchedObjects.has(typedMethod) || typedMethod.__axon_patched__) return true;
 
   const proxy = new HookedCreateProxy<TArgs, TOutput>({
     create: typedMethod.bind(parentObj) as (input: TArgs) => Promise<TOutput>,
@@ -60,17 +56,14 @@ export function patchMethod<TArgs, TOutput>(opts: PatchMethodOpts<TArgs, TOutput
   });
 
   const wrapped = CreateFacade.wrap(typedMethod as (input: TArgs) => Promise<TOutput>, proxy);
-
-  // 2. Set Metadata:
-  // Store the original method so tests (and users) can access it if needed.
   const wrappedWithMeta = wrapped as PatchableFunction;
+
   wrappedWithMeta.__axon_original__ = originalMethod;
   wrappedWithMeta.__axon_patched__ = true;
 
   parentObj[opts.methodName] = wrappedWithMeta;
   patchedObjects.add(wrappedWithMeta);
 
-  // Also mark the parent object if convenient, though method-marking is more precise.
   parentObj.__axon_patched__ = true;
 
   return true;
