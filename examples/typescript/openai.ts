@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { Axon, LLMRequest, LLMResponse, CallContext } from '../src/index.js';
+import { Axon, LLMRequest, LLMResponse, CallContext } from '@memorilabs/axon';
 import { OpenAI } from 'openai';
 
 if (!process.env.OPENAI_API_KEY) {
