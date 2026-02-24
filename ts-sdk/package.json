@@ -1,6 +1,6 @@
 {
   "name": "@memorilabs/axon",
-  "version": "0.1.2-beta",
+  "version": "0.1.3-beta",
   "description": "TypeScript SDK for Memori's hosted memory service",
   "type": "module",
   "main": "./dist/index.js",
@@ -8,23 +8,28 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./openai": {
       "types": "./dist/providers/openai/index.d.ts",
-      "import": "./dist/providers/openai/index.js"
+      "import": "./dist/providers/openai/index.js",
+      "default": "./dist/providers/openai/index.js"
     },
     "./anthropic": {
       "types": "./dist/providers/anthropic/index.d.ts",
-      "import": "./dist/providers/anthropic/index.js"
+      "import": "./dist/providers/anthropic/index.js",
+      "default": "./dist/providers/anthropic/index.js"
     },
     "./types": {
       "types": "./dist/types/index.d.ts",
-      "import": "./dist/types/index.js"
+      "import": "./dist/types/index.js",
+      "default": "./dist/types/index.js"
     },
     "./errors": {
       "types": "./dist/errors/index.d.ts",
-      "import": "./dist/errors/index.js"
+      "import": "./dist/errors/index.js",
+      "default": "./dist/errors/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -74,8 +79,8 @@
   },
   "homepage": "https://github.com/MemoriLabs/axon",
   "peerDependencies": {
-    "@anthropic-ai/sdk": "^0.74.0",
-    "openai": "^4.0.0"
+    "@anthropic-ai/sdk": "*",
+    "openai": "*"
   },
   "peerDependenciesMeta": {
     "openai": {
@@ -86,7 +91,7 @@
     }
   },
   "devDependencies": {
-    "@anthropic-ai/sdk": "^0.74.0",
+    "@anthropic-ai/sdk": "*",
     "@eslint/js": "^9.0.0",
     "@types/node": "^20.11.30",
     "@vitest/coverage-v8": "^2.1.9",
@@ -95,7 +100,7 @@
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^10.1.8",
     "lint-staged": "^15.0.0",
-    "openai": "^6.21.0",
+    "openai": "*",
     "prettier": "^3.0.0",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.55.0",
