@@ -41,8 +41,5 @@ jobs:
       - name: Run tests
         run: npm test --if-present
 
-      - name: Copy root LICENSE to ts-sdk
-        run: cp LICENSE ts-sdk/LICENSE
-
       - name: Publish Package
         run: npm publish --access public --tag beta
