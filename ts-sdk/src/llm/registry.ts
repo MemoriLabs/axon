@@ -1,8 +1,6 @@
 import type { Axon } from '../core/axon.js';
+import { ClientMatcher, ClientPatcher } from '@/types/registry.js';
 import { UnsupportedLLMProviderError } from '../errors/index.js';
-
-export type ClientMatcher = (client: unknown) => boolean;
-export type ClientPatcher = (client: unknown, axon: Axon) => void;
 
 interface ProviderRegistration {
   matcher: ClientMatcher;
@@ -34,8 +32,8 @@ export class LLMRegistry {
    *
    * @param client - The initialized LLM client instance.
    * @returns The Axon instance for method chaining.
-   * @throws {UnsupportedLLMProviderError} If the provided client is not supported or recognized.
-   * * @example
+   * @throws UnsupportedLLMProviderError If the provided client is not supported or recognized.
+   * @example
    * ```ts
    * const axon = new Axon();
    * const openai = new OpenAI({ apiKey: '...' });

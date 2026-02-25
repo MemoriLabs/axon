@@ -1,7 +1,9 @@
 import type { CallContext } from './context.js';
 
+/** Represents the author of a message in the conversation. */
 export type Role = 'system' | 'user' | 'assistant' | 'tool';
 
+/** A single normalized message within an LLM conversation. */
 export interface Message {
   role: Role;
   content: string;
@@ -22,6 +24,9 @@ export interface LLMRequest {
   metadata?: Record<string, unknown>;
 }
 
+/**
+ * Standardized token usage statistics for an LLM response.
+ */
 export interface Usage {
   promptTokens?: number;
   completionTokens?: number;
@@ -52,7 +57,7 @@ export interface LLMAdapter {
 
 /**
  * Hook function executed before an LLM call.
- * Can return a modified request
+ * * @returns A modified request object, or `undefined`/`void` to leave the request unmodified.
  */
 export type BeforeHook = (
   req: LLMRequest,
@@ -61,7 +66,7 @@ export type BeforeHook = (
 
 /**
  * Hook function executed after an LLM call.
- * Can return a modified response
+ * * @returns A modified response object, or `undefined`/`void` to leave the response unmodified.
  */
 export type AfterHook = (
   req: LLMRequest,
