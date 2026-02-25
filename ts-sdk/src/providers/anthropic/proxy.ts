@@ -15,13 +15,20 @@ import { PROVIDERS } from '../../utils/constants.js';
 
 function extractParams(args: AnthropicCreateArgs): Record<string, unknown> {
   // Separate model and messages from extra provider-specific parameters
-  const { model: _model, messages: _messages, ...params } = args;
+  const { model: _model, messages: _messages, system: _system, ...params } = args;
   return params;
 }
 
 function argsToRequest(args: AnthropicCreateArgs): LLMRequest {
+  const messages = anthropicInputToMessages(args.messages);
+
+  // If there's a system parameter at the top level, convert it to a system message
+  if (args.system) {
+    messages.unshift({ role: 'system', content: args.system });
+  }
+
   return {
-    messages: anthropicInputToMessages(args.messages),
+    messages,
     model: args.model,
     params: extractParams(args),
   };
@@ -29,11 +36,22 @@ function argsToRequest(args: AnthropicCreateArgs): LLMRequest {
 
 function requestToArgs(request: LLMRequest): AnthropicCreateArgs {
   if (!request.model) throw new Error('No model provided.');
-  return {
+
+  // Extract system message if present
+  const systemMessage = request.messages.find((m) => m.role === 'system');
+
+  const args: AnthropicCreateArgs = {
     model: request.model,
     messages: messagesToAnthropicInput(request),
     ...(request.params ?? {}),
-  } as AnthropicCreateArgs;
+  };
+
+  // Add system parameter at top level if system message exists
+  if (systemMessage) {
+    args.system = systemMessage.content;
+  }
+
+  return args;
 }
 
 function rawToCanonical(raw: unknown): LLMResponse {

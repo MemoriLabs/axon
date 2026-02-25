@@ -1,6 +1,6 @@
 {
   "name": "@memorilabs/axon",
-  "version": "0.1.4-beta",
+  "version": "0.1.5-beta",
   "description": "TypeScript SDK for Memori's cloud memory service",
   "type": "module",
   "main": "./dist/index.js",

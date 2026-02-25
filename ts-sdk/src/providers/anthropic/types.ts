@@ -1,6 +1,7 @@
 export interface AnthropicCreateArgs {
   model: string;
   messages: AnthropicMessage[];
+  system?: string;
   stream?: boolean;
   max_tokens?: number;
   [key: string]: unknown;
