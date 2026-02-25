@@ -4,6 +4,11 @@ export interface GeminiGenerateContentArgs {
   [key: string]: unknown;
 }
 
+/**
+ * The minimal expected shape of an initialized Google Gemini client instance.
+ * Axon uses this interface to detect and safely patch the `models.generateContent`
+ * and `models.generateContentStream` methods.
+ */
 export interface GeminiClient {
   models?: {
     generateContent: (args: GeminiGenerateContentArgs) => Promise<unknown>;

@@ -11,8 +11,12 @@ export interface AnthropicMessage {
   content: string | Array<{ type: string; text?: string; [key: string]: unknown }>;
 }
 
+/**
+ * The minimal expected shape of an initialized Anthropic client instance.
+ * Axon uses this interface to detect and safely patch the `messages.create` method.
+ */
 export interface AnthropicClient {
-  messages: {
+  messages?: {
     create: (args: AnthropicCreateArgs) => Promise<unknown>;
     __axon_patched__?: boolean;
   };

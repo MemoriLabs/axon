@@ -11,6 +11,11 @@ export interface OpenAIChatCompletionsCreateArgs {
   [key: string]: unknown;
 }
 
+/**
+ * The minimal expected shape of an initialized OpenAI client instance.
+ * Axon uses this interface to detect and safely patch the `chat.completions.create`
+ * and legacy `responses.create` methods.
+ */
 export interface OpenAIClient {
   responses?: {
     create: (args: OpenAIResponsesCreateArgs) => Promise<unknown>;

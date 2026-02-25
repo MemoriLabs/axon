@@ -32,18 +32,17 @@ You write a hook once, and it normalizes the requests and responses across all s
 * **Unified Hook System:** Modify prompts (`before`) or track token usage (`after`) using a single standard format, regardless of which LLM provider your app is talking to.
 * **First-Class Streaming:** Seamlessly handles and aggregates asynchronous streaming responses behind the scenes so your hooks always get the full picture.
 
-## Official SDKs
+## Official SDK
 
-Axon is available in both TypeScript and Python. Choose your preferred environment below to get started:
+Axon is available for TypeScript / Node.js:
 
 * 🟦 **[TypeScript / Node.js SDK](./ts-sdk/README.md)**
-* 🟨 **[Python SDK](./python-sdk/README.md)**
 
 ---
 
 ## Quick Glance
 
-Axon's API is designed to feel native and consistent no matter what language you are working in.
+Axon's API is designed to feel native and consistent.
 
 ### TypeScript
 
@@ -69,47 +68,23 @@ axon.after.register((req, res, ctx) => {
 await client.chat.completions.create({ ... });
 ```
 
-### Python
-
-```python
-from openai import OpenAI
-from axon import Axon
-
-client = OpenAI()
-axon = Axon().llm.register(client)
-
-# 1. Intercept and modify requests
-@axon.before.register
-def before_call(request, ctx):
-    print(f"Sending to: {request.model}")
-    return request
-
-# 2. Track responses and tokens
-@axon.after.register
-def after_call(request, response, ctx):
-    print(f"Tokens used: {response.usage.total_tokens}")
-
-# 3. Call the client exactly as you normally would
-client.chat.completions.create(...)
-```
-
 ---
 
 ## Supported Integrations
 
 Currently, Axon can patch the following official SDKs out of the box:
 
-| Provider | TypeScript Peer Dependency | Python Dependency |
-| --- | --- | --- |
-| **OpenAI** | `openai` | `openai` |
-| **Anthropic** | `@anthropic-ai/sdk` | *(Coming soon)* |
-| **Google Gemini** | `@google/genai` | *(Coming soon)* |
+| Provider | TypeScript Peer Dependency |
+| --- | --- |
+| **OpenAI** | `openai` |
+| **Anthropic** | `@anthropic-ai/sdk` |
+| **Google Gemini** | `@google/genai` |
 
 ---
 
 ## Contributing
 
-We welcome contributions from the community! Please see our [Contributing Guidelines](./CONTRIBUTING.md) for details on how to set up your development environment, run tests, and submit pull requests for both the Python and TypeScript codebases.
+We welcome contributions from the community! Please see our [Contributing Guidelines](./CONTRIBUTING.md) for details on how to set up your development environment, run tests, and submit pull requests.
 
 ## Support
 

@@ -5,7 +5,7 @@ export type HookType<P> = P extends 'before' ? BeforeHook : AfterHook;
 /**
  * Manages a list of lifecycle hooks for a specific phase.
  *
- * @template P - The lifecycle phase this registry manages ('before' or 'after').
+ * @typeParam P - The lifecycle phase this registry manages ('before' or 'after').
  */
 export class HookRegistry<P extends 'before' | 'after'> {
   private hooks: Array<HookType<P>> = [];
