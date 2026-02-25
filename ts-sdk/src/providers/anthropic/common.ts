@@ -21,10 +21,13 @@ export function anthropicInputToMessages(input: unknown): Message[] {
 }
 
 export function messagesToAnthropicInput(request: LLMRequest): AnthropicMessage[] {
-  return request.messages.map((m) => ({
-    role: m.role,
-    content: m.content,
-  }));
+  // Filter out system messages, they'll be handled separately
+  return request.messages
+    .filter((m) => m.role !== 'system')
+    .map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
 }
 
 export function contentFromAnthropic(response: unknown): string {
