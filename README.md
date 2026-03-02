@@ -54,13 +54,13 @@ const client = new OpenAI();
 const axon = new Axon().llm.register(client);
 
 // 1. Intercept and modify requests
-axon.before.register((req, ctx) => {
+axon.hook.before((req, ctx) => {
   console.log(`Sending to: ${req.model}`);
   return req;
 });
 
 // 2. Track responses and tokens
-axon.after.register((req, res, ctx) => {
+axon.hook.after((req, res, ctx) => {
   console.log(`Tokens used: ${res.usage?.totalTokens}`);
 });
 

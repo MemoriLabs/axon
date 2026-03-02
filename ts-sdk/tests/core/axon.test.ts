@@ -9,7 +9,7 @@ describe('Axon', () => {
     const req: LLMRequest = { messages: [], model: 'test' };
 
     // Register a hook to ensure the pipeline actually runs logic
-    axon.before.register((r) => ({ ...r, model: 'hooked' }));
+    axon.hook.before((r) => ({ ...r, model: 'hooked' }));
 
     const result = await axon.runBefore(req, ctx);
     expect(result.model).toBe('hooked');
@@ -22,7 +22,7 @@ describe('Axon', () => {
     const res: LLMResponse = { content: 'original' };
 
     // Register a hook
-    axon.after.register((_req, r) => ({ ...r, content: 'hooked' }));
+    axon.hook.after((_req, r) => ({ ...r, content: 'hooked' }));
 
     const result = await axon.runAfter(req, res, ctx);
     expect(result.content).toBe('hooked');

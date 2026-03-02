@@ -50,14 +50,14 @@ const axon = new Axon();
 axon.llm.register(client);
 
 // 3. Register a Before Hook (e.g., logging or modifying prompts)
-axon.before.register((req, ctx) => {
+axon.hook.before((req, ctx) => {
   console.log(`[${ctx.traceId}] Intercepted request to model: ${req.model}`);
   // You can modify the request here before it hits the provider
   return req;
 });
 
 // 4. Register an After Hook (e.g., token usage tracking)
-axon.after.register((req, res, ctx) => {
+axon.hook.after((req, res, ctx) => {
   console.log(`[${ctx.traceId}] Received response. Tokens used: ${res.usage?.totalTokens}`);
 });
 
