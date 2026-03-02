@@ -3,39 +3,29 @@ import { AfterHook, BeforeHook, CallContext, LLMRequest, LLMResponse } from '../
 export type HookType<P> = P extends 'before' ? BeforeHook : AfterHook;
 
 /**
- * Manages a list of lifecycle hooks for a specific phase.
+ * Manages and executes a sequential pipeline of lifecycle hooks.
+ * This is an internal execution engine for `axon.hooks`.
  *
- * @typeParam P - The lifecycle phase this registry manages ('before' or 'after').
+ * @typeParam P - The lifecycle phase this pipeline manages ('before' or 'after').
+ * @internal
  */
-export class HookRegistry<P extends 'before' | 'after'> {
+export class HookPipeline<P extends 'before' | 'after'> {
   private hooks: Array<HookType<P>> = [];
 
   constructor(private readonly phase: P) {}
 
   /**
-   * Registers a new hook function.
-   * Hooks are executed sequentially in the order they are registered.
+   * Adds a new hook function to the pipeline.
+   * Hooks are executed sequentially in the order they are added.
    *
-   * @param fn - The hook function to execute. It can optionally return a modified request/response, or a Promise resolving to one.
-   * * @example
-   * ```ts
-   * // Before Hook Example:
-   * axon.before.register((req, ctx) => {
-   * console.log(`Sending prompt to ${req.model}`);
-   * return req; // Optional: return modified request
-   * });
-   * * // After Hook Example:
-   * axon.after.register((req, res, ctx) => {
-   * console.log(`Received ${res.usage?.totalTokens} tokens`);
-   * });
-   * ```
+   * @param fn - The hook function to add to the pipeline.
    */
-  register(fn: HookType<P>): void {
+  add(fn: HookType<P>): void {
     this.hooks.push(fn);
   }
 
   /**
-   * Executes all registered hooks in sequence.
+   * Executes the pipeline of hooks in sequence.
    * @internal
    */
   async execute(...args: unknown[]): Promise<unknown> {
