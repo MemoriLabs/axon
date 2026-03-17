@@ -14,10 +14,12 @@ export function geminiInputToMessages(contents: GeminiGenerateContentArgs['conte
 }
 
 export function messagesToGeminiInput(request: LLMRequest): GeminiGenerateContentArgs['contents'] {
-  return request.messages.map((m) => ({
-    role: m.role === 'assistant' ? 'model' : m.role,
-    parts: [{ text: m.content }],
-  }));
+  return request.messages
+    .filter((m) => m.role !== 'system')
+    .map((m) => ({
+      role: m.role === 'assistant' ? 'model' : m.role,
+      parts: [{ text: m.content }],
+    }));
 }
 
 export function contentFromGemini(response: unknown): string {

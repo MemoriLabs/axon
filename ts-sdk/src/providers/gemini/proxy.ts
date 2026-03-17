@@ -13,10 +13,39 @@ import { extractSDKVersion } from '../telemetry.js';
 import { GeminiResponse } from './responses.js';
 import { PROVIDERS } from '../../utils/constants.js';
 
+function extractSystemInstruction(config?: GeminiGenerateContentArgs['config']): string {
+  if (!config?.systemInstruction) return '';
+
+  const instruction = config.systemInstruction;
+
+  if (typeof instruction === 'string') {
+    return instruction;
+  }
+
+  if (typeof instruction === 'object') {
+    const parts = instruction.parts;
+    if (Array.isArray(parts)) {
+      return parts
+        .map((p) => p.text)
+        .filter((text): text is string => typeof text === 'string')
+        .join('');
+    }
+  }
+
+  return '';
+}
+
 function argsToRequest(args: GeminiGenerateContentArgs): LLMRequest {
   const { model: _model, contents: _contents, ...params } = args;
+  const messages = geminiInputToMessages(args.contents);
+
+  const systemContent = extractSystemInstruction(params.config);
+  if (systemContent) {
+    messages.unshift({ role: 'system', content: systemContent });
+  }
+
   return {
-    messages: geminiInputToMessages(args.contents),
+    messages,
     model: args.model,
     params,
   };
@@ -24,23 +53,43 @@ function argsToRequest(args: GeminiGenerateContentArgs): LLMRequest {
 
 function requestToArgs(request: LLMRequest): GeminiGenerateContentArgs {
   if (!request.model) throw new Error('No model provided.');
-  return {
+
+  const [systemMessages, otherMessages] = request.messages.reduce<
+    [typeof request.messages, typeof request.messages]
+  >(
+    ([sys, other], msg) =>
+      msg.role === 'system' ? [[...sys, msg], other] : [sys, [...other, msg]],
+    [[], []]
+  );
+
+  const args: GeminiGenerateContentArgs = {
     model: request.model,
-    contents: messagesToGeminiInput(request),
+    contents: messagesToGeminiInput({ ...request, messages: otherMessages }),
     ...(request.params ?? {}),
-  } as GeminiGenerateContentArgs;
+  };
+
+  if (systemMessages.length > 0) {
+    args.config = {
+      ...(args.config ?? {}),
+      systemInstruction: systemMessages.map((m) => m.content).join('\n\n'),
+    };
+  }
+
+  return args;
 }
 
 function rawToCanonical(raw: unknown): LLMResponse {
   return { content: contentFromGemini(raw), usage: usageFromGemini(raw), raw };
 }
 
+function isGeminiResponse(raw: unknown): raw is GeminiResponse {
+  return typeof raw === 'object' && raw !== null;
+}
+
 function chunkToText(chunk: unknown): string | undefined {
-  const r = chunk as GeminiResponse;
-
-  if (typeof r.text === 'string') return r.text;
-
-  return r.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!isGeminiResponse(chunk)) return undefined;
+  if (typeof chunk.text === 'string') return chunk.text;
+  return chunk.candidates?.[0]?.content?.parts?.[0]?.text;
 }
 
 export function patchGeminiClient(client: unknown, axon: Axon): void {
@@ -51,39 +100,34 @@ export function patchGeminiClient(client: unknown, axon: Axon): void {
     throw new Error('Gemini client has no models API.');
   }
 
-  // Patch the standard (unary) method
-  patchMethod({
+  const sharedCtxMetadata = { provider: PROVIDERS.GEMINI.id, sdkVersion };
+
+  const baseConfig = {
     axon,
     parent: geminiClient.models,
-    methodName: 'generateContent',
-    ctxMetadata: { provider: PROVIDERS.GEMINI.id, method: 'models.generateContent', sdkVersion },
-    argsToRequest,
     requestToArgs,
     rawToResponse: rawToCanonical,
     applyCanonicalToRaw: applyContentToGeminiResponse,
     chunkToText,
+  };
+
+  patchMethod({
+    ...baseConfig,
+    methodName: 'generateContent',
+    ctxMetadata: { ...sharedCtxMetadata, method: 'models.generateContent' },
+    argsToRequest,
   });
 
-  // Patch the explicit streaming method
   patchMethod({
-    axon,
-    parent: geminiClient.models,
+    ...baseConfig,
     methodName: 'generateContentStream',
-    ctxMetadata: {
-      provider: PROVIDERS.GEMINI.id,
-      method: 'models.generateContentStream',
-      sdkVersion,
-    },
-    argsToRequest: (args) => {
-      const baseRequest = argsToRequest(args);
+    ctxMetadata: { ...sharedCtxMetadata, method: 'models.generateContentStream' },
+    argsToRequest: (args: GeminiGenerateContentArgs) => {
+      const req = argsToRequest(args);
       return {
-        ...baseRequest,
-        params: { ...baseRequest.params, stream: true },
+        ...req,
+        params: { ...req.params, stream: true },
       };
     },
-    requestToArgs,
-    rawToResponse: rawToCanonical,
-    applyCanonicalToRaw: applyContentToGeminiResponse,
-    chunkToText,
   });
 }
