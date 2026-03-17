@@ -1,6 +1,10 @@
 export interface GeminiGenerateContentArgs {
   model: string;
   contents: string | Array<{ role?: string; parts: Array<{ text?: string }> }>;
+  config?: {
+    systemInstruction?: string | { parts?: Array<{ text?: string }> };
+    [key: string]: unknown;
+  };
   [key: string]: unknown;
 }
 
