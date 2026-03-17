@@ -36,10 +36,10 @@ function extractSystemInstruction(config?: GeminiGenerateContentArgs['config']):
 }
 
 function argsToRequest(args: GeminiGenerateContentArgs): LLMRequest {
-  const { model: _model, contents: _contents, ...params } = args;
+  const { config, ...params } = args;
   const messages = geminiInputToMessages(args.contents);
 
-  const systemContent = extractSystemInstruction(params.config);
+  const systemContent = extractSystemInstruction(config);
   if (systemContent) {
     messages.unshift({ role: 'system', content: systemContent });
   }
@@ -54,13 +54,8 @@ function argsToRequest(args: GeminiGenerateContentArgs): LLMRequest {
 function requestToArgs(request: LLMRequest): GeminiGenerateContentArgs {
   if (!request.model) throw new Error('No model provided.');
 
-  const [systemMessages, otherMessages] = request.messages.reduce<
-    [typeof request.messages, typeof request.messages]
-  >(
-    ([sys, other], msg) =>
-      msg.role === 'system' ? [[...sys, msg], other] : [sys, [...other, msg]],
-    [[], []]
-  );
+  const systemMessages = request.messages.filter((m) => m.role === 'system');
+  const otherMessages = request.messages.filter((m) => m.role !== 'system');
 
   const args: GeminiGenerateContentArgs = {
     model: request.model,
@@ -89,7 +84,10 @@ function isGeminiResponse(raw: unknown): raw is GeminiResponse {
 function chunkToText(chunk: unknown): string | undefined {
   if (!isGeminiResponse(chunk)) return undefined;
   if (typeof chunk.text === 'string') return chunk.text;
-  return chunk.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  const firstCandidate = chunk.candidates?.[0];
+  const firstPart = firstCandidate?.content?.parts?.[0];
+  return firstPart?.text;
 }
 
 export function patchGeminiClient(client: unknown, axon: Axon): void {
