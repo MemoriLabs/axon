@@ -36,17 +36,17 @@ function extractSystemInstruction(config?: GeminiGenerateContentArgs['config']):
 }
 
 function argsToRequest(args: GeminiGenerateContentArgs): LLMRequest {
-  const { config, ...params } = args;
-  const messages = geminiInputToMessages(args.contents);
+  const { model, contents, ...params } = args;
+  const messages = geminiInputToMessages(contents);
 
-  const systemContent = extractSystemInstruction(config);
+  const systemContent = extractSystemInstruction(params.config);
   if (systemContent) {
     messages.unshift({ role: 'system', content: systemContent });
   }
 
   return {
     messages,
-    model: args.model,
+    model,
     params,
   };
 }
