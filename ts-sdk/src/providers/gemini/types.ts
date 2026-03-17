@@ -1,7 +1,6 @@
 export interface GeminiGenerateContentArgs {
   model: string;
   contents: string | Array<{ role?: string; parts: Array<{ text?: string }> }>;
-  // Explicitly type the config object so we don't have to cast it later!
   config?: {
     systemInstruction?: string | { parts?: Array<{ text?: string }> };
     [key: string]: unknown;
