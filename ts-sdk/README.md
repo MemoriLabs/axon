@@ -1,4 +1,4 @@
-[![Memori Labs](https://s3.us-east-1.amazonaws.com/images.memorilabs.ai/banner.png)](https://memorilabs.ai/)
+[![Memori Labs](https://images.memorilabs.ai/banner.png)](https://memorilabs.ai/)
 
 <p align="center">
   <strong>The universal LLM interceptor and hook registry</strong>
