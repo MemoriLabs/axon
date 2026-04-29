@@ -80,7 +80,7 @@ describe('Anthropic Common Utilities', () => {
 
     it('should push new block if array is empty', () => {
       const raw = { content: [] };
-      applyContentToResponse(raw, { content: 'new' } as any);
+      applyContentToResponse(raw, { content: 'new' });
       expect(raw.content[0]).toEqual({ type: 'text', text: 'new' });
     });
   });

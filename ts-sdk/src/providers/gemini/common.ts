@@ -6,7 +6,7 @@ export function geminiInputToMessages(contents: GeminiGenerateContentArgs['conte
   if (typeof contents === 'string') return [{ role: 'user', content: contents }];
   if (Array.isArray(contents)) {
     return contents.map((c) => ({
-      role: (c.role === 'model' ? 'assistant' : 'user') as Message['role'],
+      role: c.role === 'model' ? 'assistant' : 'user',
       content: c.parts.map((p) => p.text).join(''),
     }));
   }
