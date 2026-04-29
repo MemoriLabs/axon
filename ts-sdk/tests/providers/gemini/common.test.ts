@@ -6,7 +6,7 @@ import {
   usageFromGemini,
   applyContentToGeminiResponse,
 } from '@/providers/gemini/common.js';
-import { LLMRequest, LLMResponse } from '@/types/index.js';
+import { LLMRequest } from '@/types/index.js';
 
 describe('Gemini Common Utilities', () => {
   describe('geminiInputToMessages', () => {
@@ -93,13 +93,13 @@ describe('Gemini Common Utilities', () => {
       const raw = {
         candidates: [{ content: { parts: [{ text: 'old' }] } }],
       };
-      applyContentToGeminiResponse(raw, { content: 'new' } as LLMResponse);
+      applyContentToGeminiResponse(raw, { content: 'new' });
       expect(raw.candidates[0].content.parts[0].text).toBe('new');
     });
 
     it('should mutate top-level text property', () => {
       const raw = { text: 'old' };
-      applyContentToGeminiResponse(raw, { content: 'new' } as LLMResponse);
+      applyContentToGeminiResponse(raw, { content: 'new' });
       expect(raw.text).toBe('new');
     });
   });

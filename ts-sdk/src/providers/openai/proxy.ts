@@ -31,7 +31,7 @@ function responsesArgsToRequest(args: OpenAIResponsesCreateArgs): LLMRequest {
   return {
     messages: openaiInputToMessages(args.input),
     model: args.model,
-    params: extractParams(args as Record<string, unknown>, 'input'),
+    params: extractParams(args, 'input'),
   };
 }
 
@@ -41,14 +41,14 @@ function requestToResponsesArgs(request: LLMRequest): OpenAIResponsesCreateArgs 
     model: request.model,
     input: messagesToOpenAIInput(request),
     ...(request.params ?? {}),
-  } as OpenAIResponsesCreateArgs;
+  };
 }
 
 function chatArgsToRequest(args: OpenAIChatCompletionsCreateArgs): LLMRequest {
   return {
     messages: openaiInputToMessages(args.messages),
     model: args.model,
-    params: extractParams(args as Record<string, unknown>, 'messages'),
+    params: extractParams(args, 'messages'),
   };
 }
 
@@ -58,7 +58,7 @@ function requestToChatArgs(request: LLMRequest): OpenAIChatCompletionsCreateArgs
     model: request.model,
     messages: messagesToOpenAIInput(request),
     ...(request.params ?? {}),
-  } as OpenAIChatCompletionsCreateArgs;
+  };
 }
 
 function rawToCanonical(raw: unknown): LLMResponse {

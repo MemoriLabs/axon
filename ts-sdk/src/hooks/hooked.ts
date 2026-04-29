@@ -39,7 +39,7 @@ export class HookedStream<TChunk> implements AsyncIterable<TChunk> {
         if (text) {
           this.accumulatedContent.push(text);
         }
-        yield value as TChunk;
+        yield value;
       }
     } finally {
       if (!this.hasFinished) {
