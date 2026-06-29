@@ -33,7 +33,7 @@ export class Axon {
   /** Registry for managing third-party LLM providers. */
   public readonly llm: LLMRegistry;
 
-  /** * Namespace for registering LLM lifecycle hooks.
+  /** Namespace for registering LLM lifecycle hooks.
    * Hooks allow you to intercept, observe, and modify requests and responses.
    */
   public readonly hook: {

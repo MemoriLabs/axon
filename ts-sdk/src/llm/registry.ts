@@ -37,7 +37,7 @@ export class LLMRegistry {
    * ```ts
    * const axon = new Axon();
    * const openai = new OpenAI({ apiKey: '...' });
-   * * // Patch the client
+   * // Patch the client
    * axon.llm.register(openai);
    * ```
    */
