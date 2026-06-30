@@ -60,7 +60,7 @@ export interface LLMAdapter {
 
 /**
  * Hook function executed before an LLM call.
- * * @returns A modified request object, or `undefined`/`void` to leave the request unmodified.
+ * @returns A modified request object, or `undefined`/`void` to leave the request unmodified.
  */
 export type BeforeHook = (
   req: LLMRequest,
@@ -69,7 +69,7 @@ export type BeforeHook = (
 
 /**
  * Hook function executed after an LLM call.
- * * @returns A modified response object, or `undefined`/`void` to leave the response unmodified.
+ * @returns A modified response object, or `undefined`/`void` to leave the response unmodified.
  */
 export type AfterHook = (
   req: LLMRequest,
